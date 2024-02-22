@@ -1,6 +1,8 @@
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, Union
+
 
 class User(BaseModel):
     username: str
@@ -14,3 +16,7 @@ class User(BaseModel):
 #creamos un schema diferente para el password
 class UserInDB(User):
     password:str
+    
+#para tomar el email en el form data
+class OAuth2PasswordRequestFormWithEmail(OAuth2PasswordRequestForm):
+    email: str
