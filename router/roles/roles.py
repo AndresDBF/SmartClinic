@@ -1,26 +1,25 @@
-from fastapi import APIRouter, HTTPException, status, Form, Response
+from fastapi import APIRouter, HTTPException, status, Form, Response, Depends
 from config.db import engine
 from model.roles.roles import roles
 from model.user import users
+from router.users.user import authenticate_user, create_token, oauth2_scheme, user
 from schema.rules.rules import Role
 from sqlalchemy import insert, select, update, delete, join
 from typing import List, Dict
 from sqlalchemy import insert, select, func
+from jose import jwt, JWTError
 
 routerol = APIRouter(tags=['roles'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
+SECRET_KEY = "0d227dc4d6ac7f607f532c85f5d8770215f3aa12398645b3bb74f09f1ebcbd51"
+ALGORITHM = "HS256"
+
+
 @routerol.get("/admin/roles/user", tags=["roles"], status_code=status.HTTP_200_OK)
-async def get_rules():
+async def get_rules():  
     with engine.connect() as conn:
         query = conn.execute(roles.select()).fetchall()
-        """ query = select([users.c.username, users.c.name, users.c.last_name]).\
-            select_from(
-                users.
-                join(user_roles, users.c.id == user_roles.c.user_id).
-                join(roles, user_roles.c.role_id == roles.c.role_id)
-            ) """
         if not query:
-            # Define los datos de los roles predeterminados
             roles_data = [
                 {"role_id": 1, "role_name": "Usuario"},
                 {"role_id": 2, "role_name": "Doctor"}
@@ -28,11 +27,20 @@ async def get_rules():
             conn.execute(roles.insert(), roles_data)
             conn.commit()
             query = conn.execute(roles.select()).fetchall()
-            return query
-        # Mapea los resultados de la consulta a un formato que desees
-        list_roles = dict(set(query))
-        print(list_roles)
-        return list_roles    
+            print(query)
+            print(roles_data)
+            return roles_data  # Devuelve los datos predeterminados en lugar de una lista vacía
+        print("va fuera del if")
+        list_roles = [
+            {
+                "role_id": row[0],
+                "role_name": row[1]
+            }
+            for row in query
+        ]  # Convierte los resultados en una lista de diccionarios
+        return list_roles
+
+
 
 def verify_data(role: str):
     with engine.connect() as conn:

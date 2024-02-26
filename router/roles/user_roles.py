@@ -5,6 +5,7 @@ from model.user import users
 from model.roles.user_roles import user_roles
 from schema.rules.rules import Role
 from sqlalchemy import insert, select, update, delete, join,and_
+from sqlalchemy.orm import Session
 from typing import List, Dict
 from sqlalchemy import insert, select, func
 
@@ -110,43 +111,42 @@ async def update_user_role(roleid: int, userid: int, new_rol: str = Form(...), n
        
         print(new_rol)
         print(new_user_rol)
+        
+        query_roles = conn.execute(roles.select().
+                            where(roles.c.role_name == new_rol)).first()        
+        
+        query_user = conn.execute(users.select().where(users.c.username == new_user_rol)).first()
+        
+        if query_roles is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el Rol")
+        if query_user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el Usuario")
+            
+        #verify_query = conn.execute(user_roles.select().where(user_roles.c.user_id == query_user[0]).where(roles.c.role_id == query_roles[0])).first()
+        verify_query = conn.execute(
+            user_roles.select()
+            .join(roles, user_roles.c.role_id == roles.c.role_id)
+            .where(user_roles.c.user_id == query_user[0])
+            .where(roles.c.role_id == query_roles[0])
+        ).first()
 
-        # Define las columnas que deseas seleccionar como instancias de objetos de columna
-        user_id_column = users.c.id
-        username_column = users.c.username
-        role_id_column = roles.c.role_id
-        role_name_column = roles.c.role_name
-        user_role_user_id_column = user_roles.c.user_id
-        user_role_role_id_column = user_roles.c.role_id
-
-        # Realiza la consulta con las instancias de objetos de columna
-        query = conn.execute(
-            select([
-                user_id_column, 
-                username_column, 
-                role_id_column, 
-                role_name_column,  
-                user_role_user_id_column, 
-                user_role_role_id_column
-            ]).select_from(
-                join(users, user_roles, users.c.id == user_roles.c.user_id).
-                join(roles, user_roles.c.role_id == roles.c.role_id)
-            ).where(
-                and_(roles.c.role_name == new_rol, users.c.username == new_user_rol)
-            )
-        ).fetchall()
-
-        print(query)
-        if query:
+        print(query_roles[0])
+        print(query_user[0])
+        print(verify_query)
+        if verify_query is not None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {new_user_rol} ya tiene asignado el rol de {new_rol}")
         
-        user_data = get_data(roleid, userid)
-        conn.execute(user_roles.update().where(user_roles.c.role_id == roleid).
-                     where(user_roles.c.user_id == userid).values(user_data))
+        conn.execute(user_roles.update().where(user_roles.c.user_id == query_user[0]).values(role_id=query_roles[0]))
         conn.commit()
     return Response(content="Usuario actualizado correctamente", status_code= status.HTTP_200_OK)
 
-
+@routeuserrol.delete("/admin/userroles/delete/{rol_id}/{user_id}")
+async def delete_user_role(rol: int, userid: int):
+    with engine.connect() as conn:
+        query_user = conn.execute(users.select().where(users.c.id == userid)).first()
+        conn.execute(user_roles.delete().where(user_roles.c.role_id == rol).where(user_roles.c.user_id == userid))
+        conn.commit()
+    return Response(content=f"Se ha eliminado el rol al usuario {query_user[1]}")    
 
 
 

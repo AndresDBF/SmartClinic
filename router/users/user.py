@@ -55,7 +55,6 @@ def verify_username_email(username: str, email: str):
         else:
             return True
 
-
 @user.post("/api/user/register", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 async def create_user(data_user: UserSchema):
     try:
@@ -78,12 +77,13 @@ async def create_user(data_user: UserSchema):
                 conn.execute(stmt)
                 conn.commit()
 
-                return {
-                        "status": status.HTTP_200_OK,
-                        "message": "Usuario creado"
-                    }
+                # Construir el objeto UserSchema con los datos del usuario creado
+                created_user = UserSchema(**new_user)
+
+                return created_user  # Devolver el objeto UserSchema completo
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 
 async def verify_user_data(data_user: DataUser):
