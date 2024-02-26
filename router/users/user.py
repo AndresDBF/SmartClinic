@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Response, status, HTTPException, Depends, Path, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from schema.user_schema import UserSchema, DataUser
-from schema.userToken import UserInDB, User, OAuth2PasswordRequestFormWithEmail
 from config.db import engine
 from model.user import users
+from model.usercontact import usercontact
+from schema.user_schema import UserSchema, DataUser, UserContact, verify_email
+from schema.userToken import UserInDB, User, OAuth2PasswordRequestFormWithEmail
 from passlib.context import CryptContext
 from sqlalchemy import insert, select, func
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -41,13 +42,18 @@ async def get_user(user_id: str):
         return result
     
     
-def verify_username_email(username: str, email: str): 
-    with engine.connect() as conn:
+def verify_username_email(username: str, email: str, verify_email: str): 
+    if email != verify_email:
+        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="los correos electronicos no coinciden")
+    
+    with engine.connect() as conn:        
         query_user = conn.execute(users.select().where(users.c.username == username)).first()
         query_email = conn.execute(users.select().where(users.c.email == email)).first()
-       
+        
+        print(query_user)
+        print(query_email)
         if query_user is not None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este nombre de usuario no se encuentra disponible")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este nombre de usuario no se encuentra disponible")
         if query_email is not None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este Correo se encuentra en uso")
         if query_email is not None and query_user is not None:
@@ -56,30 +62,50 @@ def verify_username_email(username: str, email: str):
             return True
 
 @user.post("/api/user/register", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
-async def create_user(data_user: UserSchema):
+async def create_user(data_user: UserSchema, data_user_contact: UserContact):
     try:
         with engine.connect() as conn:
             data_user.name = data_user.name.title()
             data_user.last_name = data_user.last_name.title()
             last_id = conn.execute(select(func.max(users.c.id))).scalar()
-            if verify_username_email(data_user.username, data_user.email):
+            last_contact_id = conn.execute(select(func.max(usercontact.c.id))).scalar()
+            if verify_username_email(data_user.username, data_user.email, data_user.verify_email):
                 if last_id is not None:
                     data_user.id = last_id + 1
+                    data_user_contact.id = last_contact_id + 1
                 else:
                     data_user.id = 1 
-
+                    data_user_contact.id = 1
                 # Hashea la contraseña antes de almacenarla en la base de datos
                 hashed_password = pwd_context.hash(data_user.password)
                 data_user.password = hashed_password
-                
                 new_user = data_user.dict()
-                stmt = insert(users).values(new_user)
+                new_contact_user = data_user_contact.dict()
+                print(new_user)
+                print(new_contact_user)
+                stmt = insert(users).values(
+                    username=new_user["username"],
+                    email=new_user["email"],
+                    password=new_user["password"],
+                    name=new_user["name"],
+                    last_name=new_user["last_name"],
+                    gender=new_user["gender"],
+                    birthdate=new_user["birthdate"],
+                    tipid=new_user["tipid"],
+                    identification=new_user["identification"],
+                    disabled=new_user["disabled"]
+                )
                 conn.execute(stmt)
                 conn.commit()
-
+                # Agregar el 'id' del diccionario new_user al diccionario new_contact_user
+                new_contact_user_with_id = {**{'id': new_user["id"]}, **new_contact_user}
+                # Luego, usar este diccionario combinado para la inserción
+                print(new_contact_user_with_id)
+                save_contact = usercontact.insert().values(new_contact_user_with_id)
+                conn.execute(save_contact)
+                conn.commit()
                 # Construir el objeto UserSchema con los datos del usuario creado
                 created_user = UserSchema(**new_user)
-
                 return created_user  # Devolver el objeto UserSchema completo
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
