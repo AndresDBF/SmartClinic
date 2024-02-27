@@ -11,7 +11,7 @@ from sqlalchemy import select, insert, func
 from sqlalchemy.exc import IntegrityError
 
 
-routediag = APIRouter(tags=["diagnostic"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+routediag = APIRouter(tags=["Diagnostic"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @routediag.get("/api/diagnostic/{user_id}", status_code=status.HTTP_200_OK)
 async def create_diagnostic(user_id: int):

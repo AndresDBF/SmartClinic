@@ -2,20 +2,20 @@ from fastapi import APIRouter, HTTPException, status, Form, Response, Depends
 from config.db import engine
 from model.roles.roles import roles
 from model.user import users
-from router.users.user import authenticate_user, create_token, oauth2_scheme, user
+from router.paciente.user import authenticate_user, create_token, oauth2_scheme, user
 from schema.rules.rules import Role
 from sqlalchemy import insert, select, update, delete, join
 from typing import List, Dict
 from sqlalchemy import insert, select, func
 from jose import jwt, JWTError
 
-routerol = APIRouter(tags=['roles'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+routerol = APIRouter(tags=['Roles'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 SECRET_KEY = "0d227dc4d6ac7f607f532c85f5d8770215f3aa12398645b3bb74f09f1ebcbd51"
 ALGORITHM = "HS256"
 
 
-@routerol.get("/admin/roles/user", tags=["roles"], status_code=status.HTTP_200_OK)
+@routerol.get("/admin/roles/user",  status_code=status.HTTP_200_OK)
 async def get_rules():  
     with engine.connect() as conn:
         query = conn.execute(roles.select()).fetchall()
@@ -39,8 +39,6 @@ async def get_rules():
             for row in query
         ]  # Convierte los resultados en una lista de diccionarios
         return list_roles
-
-
 
 def verify_data(role: str):
     with engine.connect() as conn:

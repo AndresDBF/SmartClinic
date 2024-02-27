@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 from sqlalchemy import insert, select, func
 
-routeuserrol = APIRouter(tags=['user_roles'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+routeuserrol = APIRouter(tags=['User_Roles'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 
-@routeuserrol.get("/admin/userroles/user", tags=["user_roles"], status_code=status.HTTP_200_OK)
+@routeuserrol.get("/admin/userroles/user", status_code=status.HTTP_200_OK)
 async def get_userroles():
     with engine.connect() as conn:
         
