@@ -1,24 +1,44 @@
-import base64
-from fastapi import APIRouter, Response, status, HTTPException, Depends, Path, Form, UploadFile, File
+import smtplib
+import poplib
+from fastapi import APIRouter, Response, status, HTTPException, Depends, Path, Form, UploadFile, File, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+
 from config.db import engine
+
 from model.user import users
 from model.usercontact import usercontact
 from model.images.user_image_profile import user_image_profile
+
 from schema.user_schema import UserSchema, DataUser, UserContact, verify_email, UserUpdated, UserContactUpdated, UserImg
 from schema.userToken import UserInDB, User, OAuth2PasswordRequestFormWithEmail
+
 from passlib.context import CryptContext
 from pydantic import EmailStr
+from pydantic import ValidationError
+
 from sqlalchemy import insert, select, func
 from sqlalchemy.exc import IntegrityError
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from typing import List, Union
-from pydantic import ValidationError
 from datetime import datetime,timedelta, date
 from jose import jwt, JWTError
-from typing import Optional
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formataddr
+from uuid import uuid4
+
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
 
 user = APIRouter(tags=['Users'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+
+user.mount("/static", StaticFiles(directory="static"), name="static")
+
+templates = Jinja2Templates(directory="templates")
 
 #instancia 
 oauth2_scheme = OAuth2PasswordBearer("/api/user/login")
@@ -47,9 +67,7 @@ async def get_user(user_id: str):
         return result
     
 #----------------------------------CREAR USUARIO---------------------------------------------  
-def verify_username_email(username: str, email: str, verify_email: str): 
-    if email != verify_email:
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="los correos electronicos no coinciden")
+def verify_username_email(username: str, email: str): 
     
     with engine.connect() as conn:        
         query_user = conn.execute(users.select().where(users.c.username == username)).first()
@@ -106,23 +124,7 @@ async def insert_profile_image(image: UploadFile, user_id: int):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
     
 @user.post("/api/user/register",  status_code=status.HTTP_201_CREATED)
-async def create_user(username: str = Form(...),
-                    email: EmailStr = Form(...),
-                    verify_email: EmailStr = Form(...),
-                    password: str = Form(...),
-                    name: str = Form(...),
-                    last_name: str = Form(...),
-                    gender: str = Form(...),
-                    birthdate: date = Form(...),
-                    tipid: str = Form(...),
-                    identification: int = Form(...),
-                    disabled: bool = Form(...),
-                    phone: str = Form(...),
-                    country: str = Form(...),
-                    state: str = Form(...),
-                    direction: str = Form(...),
-                    image: UploadFile = File(...)):
-    print(image)
+async def create_user(username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),disabled: bool = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(...)):
     try:
         with engine.connect() as conn:
             name = name.title()
@@ -131,35 +133,9 @@ async def create_user(username: str = Form(...),
             gender = gender.title()
             last_id = conn.execute(select(func.max(users.c.id))).scalar()
             last_contact_id = conn.execute(select(func.max(usercontact.c.id))).scalar()
-            print("viendo los id")
-            print(last_id)
-            print(last_contact_id)
-            #creando los json
-            new_user = {
-                "id": last_id,
-                "username": username,
-                "email": email,
-                "verify_email": verify_email,
-                "password": password,
-                "name": name,
-                "last_name": last_name,
-                "gender": gender,
-                "birthdate": birthdate,
-                "tipid": tipid,
-                "identification": identification,
-                "disabled": disabled
-            }
-            new_contact_user = {
-                "id": last_contact_id,
-                "user_id": 1,
-                "phone": phone,
-                "country": country,
-                "state": state,
-                "direction": direction
-            }
-            
-            
-            if verify_username_email(username, email, verify_email):
+            new_user = {"id": last_id,"username": username,"email": email,"verify_email": verify_email,"password": password,"name": name,"last_name": last_name,"gender": gender,"birthdate": birthdate,"tipid": tipid,"identification": identification,"disabled": disabled}
+            new_contact_user = {"id": last_contact_id,"user_id": 1,"phone": phone,"country": country,"state": state,"direction": direction}
+            if verify_username_email(username, email):
                 if verify_ident(tipid, gender):
                     if last_id is not None:
                         id = last_id + 1
@@ -167,88 +143,38 @@ async def create_user(username: str = Form(...),
                     else:
                         id = 1 
                         id_contact = 1
-                    # Hashea la contraseña antes de almacenarla en la base de datos
-                    
                     hashed_password = pwd_context.hash(password)
                     password = hashed_password
-   
-                    stmt = insert(users).values(
-                        username=new_user["username"],
-                        email=new_user["email"],
-                        password=new_user["password"],
-                        name=new_user["name"],
-                        last_name=new_user["last_name"],
-                        gender=new_user["gender"],
-                        birthdate=new_user["birthdate"],
-                        tipid=new_user["tipid"],
-                        identification=new_user["identification"],
-                        disabled=new_user["disabled"]
-                    )
-                    
+                    stmt = insert(users).values(username=new_user["username"],email=new_user["email"],password=new_user["password"],name=new_user["name"],last_name=new_user["last_name"],gender=new_user["gender"],birthdate=new_user["birthdate"],tipid=new_user["tipid"],identification=new_user["identification"],disabled=new_user["disabled"])
                     result = conn.execute(stmt)
                     userid = result.lastrowid
                     conn.commit()
-                    # Agregar el 'id' del usuario al diccionario de detalles de contacto
+
+                    send_verification_email(email, userid)
+
                     new_contact_user["id"] = id_contact
                     new_contact_user['user_id'] = userid
-                    # Insertar los detalles de contacto con la clave foránea user_id
                     save_contact = usercontact.insert().values(new_contact_user)
                     conn.execute(save_contact)
                     conn.commit()
-                        
-                    # Obtener la imagen en base64
-                    #profile_image_base64 = insert_profile_image(image, user_id)
-                    #--------------------------------------------------------------------------
-                    
-                    
+#-----------------------------inserta la imagen de perfil-------------------------------------------------------------------------
                     try:
-                        print("entra en el try de insertar imagen")
                         if image.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
                             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser una imagen JPEG, JPG o PNG")
-                        
-                        # Leer el contenido de la imagen
                         content_profile_image = await image.read()
-                        print("lee la imagen")
-                        # Guardar la imagen en el sistema de archivos
                         with open(f"img/profile/{image.filename}", "wb") as file_ident:
                             file_ident.write(content_profile_image)
-                        print("inserta la imagen en el sistema de archivos")
                         with engine.connect() as conn:
-                            query = user_image_profile.insert().values(
-                                user_id=userid,
-                                image_profile=image.filename,
-                            
-                            )
+                            query = user_image_profile.insert().values(user_id=userid,image_profile=image.filename,)
                             conn.execute(query)
-                            conn.commit()
-                            print("inserta la imagen en la bd ")
-                        # Leer el contenido de la imagen en base6
-
-                        # Devolver la imagen en base64 como parte de la respuesta JSON
-                        
+                            conn.commit()                     
                     except IntegrityError:
                         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
-
-                    # Agregar la imagen en base64 al objeto creado del usuario
-                    created_user = {
-                        "id": userid,
-                        "username": new_user["username"],
-                        "email": new_user["email"],
-                        "name": new_user["name"],
-                        "last_name": new_user["last_name"],
-                        "gender": new_user["gender"],
-                        "birthdate": new_user["birthdate"],
-                        "tipid": new_user["tipid"],
-                        "identification": new_user["identification"],
-                        "disabled": new_user["disabled"],
-                        "urlimage": f"http://localhost:8000/api/image/profile/{image.filename}"
-                    }
+#--------------------------------------------------------------------------------------------------------------------------------------------
+                    created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": f"http://localhost:8000/api/image/profile/{image.filename}"}
                     return created_user  # Devolver el objeto UserSchema completo
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-        
-        
-
 async def verify_user_data(data_user: DataUser):
     try:
         if not data_user.email or not data_user.password:
@@ -313,7 +239,7 @@ async def user_login(email: str = Form(...), password: str = Form(...)):
                     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Contraseña incorrecta")
             else:
               
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario incorrecto")
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="El email de usuario no existe")
     except ValidationError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no se ha encontrado usuarios")
     
@@ -376,26 +302,52 @@ async def update_users(userid: str, data_user: UserUpdated, data_user_contact: U
     return Response(content="Cuenta actualizada correctamente", status_code=status.HTTP_200_OK)
 
 #---------------codigo guardado para envio de correo de verificacion---------------------
-""" import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-def send_verification_email(email):
-    sender_email = "tu_email@gmail.com"
-    sender_password = "tu_contraseña"
+@user.post("/test")
+async def create_email(email: EmailStr, userid: int):
+    email = "andresdbf06@outlook.es"
+    userid = 6
+    send_verification_email(email, userid)
     
-    # Crear el mensaje
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = email
-    msg['Subject'] = "Verificación de Cuenta"
     
-    body = "Por favor, haz clic en el siguiente enlace para verificar tu cuenta: https://tudominio.com/verify"
-    msg.attach(MIMEText(body, 'plain'))
+    
+    
+def send_verification_email(email, user_id):
+    sender_email = "andrespruebas222@gmail.com"
+    sender_name = "Andres Becerra"
+    subject = "Verificación de cuenta"
+    verification_link = f"http://localhost:8000/api/verify/{user_id}"
 
-    # Iniciar la conexión SMTP
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+    message = MIMEMultipart("alternative")
+    message["From"] = sender_email
+    message["To"] = email
+    message["Subject"] = subject
+
+    text = f"Para verificar tu cuenta, haz clic en el siguiente enlace: {verification_link}"
+    html = f"<p>Para verificar tu cuenta, haz clic en el siguiente enlace: <a href='{verification_link}'>Verificar cuenta</a></p>"
+
+    message.attach(MIMEText(text, "plain"))
+    message.attach(MIMEText(html, "html"))
+    print("hace el la verificacion de email")
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        print("inicia el server")
         server.starttls()
-        server.login(sender_email, sender_password)
-        text = msg.as_string()
-        server.sendmail(sender_email, email, text) """
+        print("inicia el server")
+        server.login(sender_email, "vhvcinzspvlwoftc")  # Coloca tu contraseña aquí
+        server.send_message(message)
+    
+@user.get("/api/verify/{user_id}", response_class=HTMLResponse)
+async def verify_account(user_id: int, request: Request):
+    try:
+        with engine.connect() as conn:
+            user = conn.execute(select(users).where(users.c.id == user_id)).fetchone()
+            if user:
+                update_stmt = users.update().where(users.c.id == user.id).values(disabled=True)
+                conn.execute(update_stmt)
+                return templates.TemplateResponse("index.html", {
+                    "request": request,
+                    "message": "Hola gente, vamos a usar html con FastAPI"
+                })
+            else:
+                raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error al verificar la cuenta.")

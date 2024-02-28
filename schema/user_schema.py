@@ -9,7 +9,6 @@ class UserSchema(BaseModel):
     id: Optional[int] = 1
     username: str
     email: EmailStr
-    verify_email: EmailStr
     password: str
     name: str
     last_name: str
