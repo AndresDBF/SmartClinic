@@ -2,6 +2,7 @@ import smtplib
 import poplib
 from fastapi import APIRouter, Response, status, HTTPException, Depends, Path, Form, UploadFile, File, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 
 from config.db import engine
 
@@ -124,7 +125,7 @@ async def insert_profile_image(image: UploadFile, user_id: int):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
     
 @user.post("/api/user/register",  status_code=status.HTTP_201_CREATED)
-async def create_user(username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),disabled: bool = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(...)):
+async def create_user(username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(...)):
     try:
         with engine.connect() as conn:
             name = name.title()
@@ -133,7 +134,7 @@ async def create_user(username: str = Form(...),email: EmailStr = Form(...),pass
             gender = gender.title()
             last_id = conn.execute(select(func.max(users.c.id))).scalar()
             last_contact_id = conn.execute(select(func.max(usercontact.c.id))).scalar()
-            new_user = {"id": last_id,"username": username,"email": email,"verify_email": verify_email,"password": password,"name": name,"last_name": last_name,"gender": gender,"birthdate": birthdate,"tipid": tipid,"identification": identification,"disabled": disabled}
+            new_user = {"id": last_id,"username": username,"email": email,"verify_email": verify_email,"password": password,"name": name,"last_name": last_name,"gender": gender,"birthdate": birthdate,"tipid": tipid,"identification": identification,"disabled": False}
             new_contact_user = {"id": last_contact_id,"user_id": 1,"phone": phone,"country": country,"state": state,"direction": direction}
             if verify_username_email(username, email):
                 if verify_ident(tipid, gender):
@@ -301,15 +302,7 @@ async def update_users(userid: str, data_user: UserUpdated, data_user_contact: U
         
     return Response(content="Cuenta actualizada correctamente", status_code=status.HTTP_200_OK)
 
-#---------------codigo guardado para envio de correo de verificacion---------------------
-@user.post("/test")
-async def create_email(email: EmailStr, userid: int):
-    email = "andresdbf06@outlook.es"
-    userid = 6
-    send_verification_email(email, userid)
-    
-    
-    
+#---------------codigo guardado para envio de correo de verificacion---------------------   
     
 def send_verification_email(email, user_id):
     sender_email = "andrespruebas222@gmail.com"
@@ -334,6 +327,7 @@ def send_verification_email(email, user_id):
         print("inicia el server")
         server.login(sender_email, "vhvcinzspvlwoftc")  # Coloca tu contraseña aquí
         server.send_message(message)
+    return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK)
     
 @user.get("/api/verify/{user_id}", response_class=HTMLResponse)
 async def verify_account(user_id: int, request: Request):
@@ -344,8 +338,7 @@ async def verify_account(user_id: int, request: Request):
                 update_stmt = users.update().where(users.c.id == user.id).values(disabled=True)
                 conn.execute(update_stmt)
                 return templates.TemplateResponse("index.html", {
-                    "request": request,
-                    "message": "Hola gente, vamos a usar html con FastAPI"
+                    "request": request
                 })
             else:
                 raise HTTPException(status_code=404, detail="Usuario no encontrado.")
