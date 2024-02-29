@@ -16,9 +16,20 @@ async def upload_file(file: UploadFile = File(...)):
 
 
 @router.get("/file/{name_file}")
-def get_file(name_file: str):
-    return FileResponse(getcwd() + "/" + name_file)
-
+def get_file(name_file: str, request: Request):
+    file_path = f"./img/profile/{name_file}"
+    
+    import os 
+    if not os.path.exists(file_path):
+        return {"error": "El archivo no existe"}
+    
+    image = FileResponse(file_path)
+    
+    base_url = str(request.base_url)
+    image_url = f"{base_url.rstrip("/")}/img/profile/{name_file}"
+    
+    return {"id": 1, "image": image_url}
+    
 @router.get("/download/{name_file}")
 def download_file(name_file: str):
     return FileResponse(getcwd() + "/" + name_file, media_type="application/octet-stream", filename=name_file)

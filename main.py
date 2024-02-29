@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from model.user import users
 from model.usercontact import usercontact
 from model.images.user_image import user_image
@@ -23,6 +24,7 @@ from router.test_image import router
 
 app = FastAPI()
 app.title = "Documentación SmartClinic"
+app.mount("/img/profile", StaticFiles(directory="img/profile"), name="profile_images")
 
 app.include_router(router)
 
