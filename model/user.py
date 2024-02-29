@@ -13,7 +13,8 @@ users = Table("users", meta_data,
               Column("gender", String(1), nullable= False, default="M"),
               Column("tipid", String(1), nullable= False, default="V"),
               Column("identification", Numeric, nullable= False),
-              Column("disabled", Boolean, nullable= False, default=False)
+              Column("disabled", Boolean, nullable= False, default=False),
+              Column("verify_ident", Boolean, nullable=False, default=False)
               )
 
 meta_data.create_all(engine)

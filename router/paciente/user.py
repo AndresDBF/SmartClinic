@@ -82,7 +82,7 @@ def verify_username_email(username: str, email: str):
         else:
             return True
 
-def verify_ident(tipid: str, gender: str):
+def verify_iden(tipid: str, gender: str):
     if tipid != "V" and tipid != "J" and tipid != "E":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"El tipo de identificacion '{tipid}' no es correcto")
     if gender != "M" and gender != "F":
@@ -134,10 +134,10 @@ async def create_user(username: str = Form(...),email: EmailStr = Form(...),pass
             gender = gender.title()
             last_id = conn.execute(select(func.max(users.c.id))).scalar()
             last_contact_id = conn.execute(select(func.max(usercontact.c.id))).scalar()
-            new_user = {"id": last_id,"username": username,"email": email,"verify_email": verify_email,"password": password,"name": name,"last_name": last_name,"gender": gender,"birthdate": birthdate,"tipid": tipid,"identification": identification,"disabled": False}
+            new_user = {"id": last_id,"username": username,"email": email,"verify_email": verify_email,"password": password,"name": name,"last_name": last_name,"gender": gender,"birthdate": birthdate,"tipid": tipid,"identification": identification,"disabled": False, "verify_ident": False}
             new_contact_user = {"id": last_contact_id,"user_id": 1,"phone": phone,"country": country,"state": state,"direction": direction}
             if verify_username_email(username, email):
-                if verify_ident(tipid, gender):
+                if verify_iden(tipid, gender):
                     if last_id is not None:
                         id = last_id + 1
                         id_contact = last_contact_id + 1
@@ -145,8 +145,8 @@ async def create_user(username: str = Form(...),email: EmailStr = Form(...),pass
                         id = 1 
                         id_contact = 1
                     hashed_password = pwd_context.hash(password)
-                    password = hashed_password
-                    stmt = insert(users).values(username=new_user["username"],email=new_user["email"],password=new_user["password"],name=new_user["name"],last_name=new_user["last_name"],gender=new_user["gender"],birthdate=new_user["birthdate"],tipid=new_user["tipid"],identification=new_user["identification"],disabled=new_user["disabled"])
+                    new_user["password"] = hashed_password
+                    stmt = insert(users).values(username=new_user["username"],email=new_user["email"],password=new_user["password"],name=new_user["name"],last_name=new_user["last_name"],gender=new_user["gender"],birthdate=new_user["birthdate"],tipid=new_user["tipid"],identification=new_user["identification"],disabled=new_user["disabled"], verify_ident=new_user["verify_ident"])
                     result = conn.execute(stmt)
                     userid = result.lastrowid
                     conn.commit()
@@ -292,7 +292,7 @@ async def update_users(userid: str, data_user: UserUpdated, data_user_contact: U
             if query_email is not None:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {data_user.email} ya se encuentra en uso")
   
-        ident = verify_ident(data_user.tipid, data_user.gender)
+        ident = verify_iden(data_user.tipid, data_user.gender)
         if ident:
             new_data_user = data_user.dict()
             new_data_usercontact = data_user_contact.dict()
@@ -329,18 +329,5 @@ def send_verification_email(email, user_id):
         server.send_message(message)
     return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK)
     
-@user.get("/api/verify/{user_id}", response_class=HTMLResponse)
-async def verify_account(user_id: int, request: Request):
-    try:
-        with engine.connect() as conn:
-            user = conn.execute(select(users).where(users.c.id == user_id)).fetchone()
-            if user:
-                update_stmt = users.update().where(users.c.id == user.id).values(disabled=True)
-                conn.execute(update_stmt)
-                return templates.TemplateResponse("index.html", {
-                    "request": request
-                })
-            else:
-                raise HTTPException(status_code=404, detail="Usuario no encontrado.")
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error al verificar la cuenta.")
+
+

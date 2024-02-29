@@ -1,23 +1,82 @@
-import smtplib
+from fastapi import APIRouter, Response, status, HTTPException, Depends, Path, Form, UploadFile, File, Request
+from fastapi.responses import JSONResponse
+
+from config.db import engine
+
+from model.user import users
+from model.usercontact import usercontact
+from model.images.user_image_profile import user_image_profile
+
+from sqlalchemy import insert, select, func
+from sqlalchemy.exc import IntegrityError
+
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+        
+email = APIRouter(tags=["Verify Email"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-def send_verification_email(email):
-    sender_email = "tu_email@gmail.com"
-    sender_password = "tu_contraseña"
-    
-    # Crear el mensaje
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = email
-    msg['Subject'] = "Verificación de Cuenta"
-    
-    body = "Por favor, haz clic en el siguiente enlace para verificar tu cuenta: https://tudominio.com/verify"
-    msg.attach(MIMEText(body, 'plain'))
+email.mount("/static", StaticFiles(directory="static"), name="static")
 
-    # Iniciar la conexión SMTP
-    with smtplib.SMTP('smtp.gmail.com', 587) as server:
-        server.starttls()
-        server.login(sender_email, sender_password)
-        text = msg.as_string()
-        server.sendmail(sender_email, email, text) 
+templates = Jinja2Templates(directory="templates")
+    
+@email.get("/api/verify/{user_id}", response_class=HTMLResponse)
+async def verify_account(user_id: int, request: Request):
+    print("entra en verificacion")
+    print(user_id)
+    try:
+        with engine.connect() as conn:
+            user = conn.execute(select(users).where(users.c.id == user_id)).fetchone()
+            if user:
+                update_stmt = users.update().where(users.c.id == user.id).values(disabled=True)
+                conn.execute(update_stmt)
+                conn.commit()
+                return templates.TemplateResponse("index.html", {
+                    "request": request
+                })
+            else:
+                raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    except IntegrityError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error al verificar la cuenta.")
+
+@email.get("/api/user/veriaccount/{user_id}")
+async def veri_email_ident(user_id: int):
+    with engine.connect() as conn:
+        user = conn.execute(users.select().where(users.c.id == user_id)).first()
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El id del usuario no se ha encontrado")
+        match user.disabled:
+            case True:
+                match user.verify_ident:
+                    case True:
+                        return JSONResponse(content={
+                            "email": True,
+                            "identif": True,
+                            "message_email": "verificado",
+                            "message_identif": "verificado"
+                        }, status_code=status.HTTP_200_OK)
+                    case False:
+                        return JSONResponse(content={
+                            "email": True,
+                            "identif": False,
+                            "message_email": "verificado",
+                            "message_identif": "EN PROCESO"
+                        }, status_code=status.HTTP_200_OK)
+            case False:
+                match user.verify_ident:
+                    case True:
+                        return JSONResponse(content={
+                            "email": False,
+                            "identif": True,
+                            "message_email": "EN PROCESO",
+                            "message_identif": "verificado"
+                        }, status_code=status.HTTP_200_OK)
+                    case False:
+                        return JSONResponse(content={
+                            "email": False,
+                            "identif": False,
+                            "message_email": "EN PROCESO",
+                            "message_identif": "EN PROCESO"
+                        }, status_code=status.HTTP_200_OK)
