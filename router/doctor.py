@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, status, Form, Response
+from fastapi import APIRouter, File, UploadFile, HTTPException, status, Form, Response, Depends
 from fastapi.responses import JSONResponse
 from config.db import engine
 from model.user import users
@@ -7,10 +7,12 @@ from model.experience_doctor import experience_doctor
 from model.usercontact import usercontact
 from sqlalchemy import select, insert, func
 
+from router.paciente.home import get_current_user
+
 routedoc = APIRouter(tags=["Doctor"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @routedoc.get("/doctor/listdocs")
-async def get_doctors():
+async def get_doctors(current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         data_doctors = conn.execute(users.select().
                                     join(user_roles, users.c.id == user_roles.c.user_id).

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response, status, HTTPException, Request
+from fastapi import APIRouter, Response, status, HTTPException, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 
@@ -10,6 +10,8 @@ from model.images.user_image_profile import user_image_profile
 
 from model.images.user_image_profile import user_image_profile
 
+from router.paciente.home import get_current_user
+
 from sqlalchemy import insert, select, func
 from sqlalchemy.exc import IntegrityError
 
@@ -20,7 +22,7 @@ uverify = APIRouter(tags=["Admin Verify User"], responses={status.HTTP_404_NOT_F
 uverify.mount("/img", StaticFiles(directory="img"), name="img")
  """
 @uverify.get("/admin/veri/user")
-async def list_user_verify():
+async def list_user_verify(current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.verify_ident == 0)).fetchall()
         user_contact = conn.execute(usercontact.select().

@@ -1,14 +1,18 @@
 import smtplib
 import poplib
+import hashlib
+import os
 from fastapi import APIRouter, Response, status, HTTPException, Depends, Path, Form, UploadFile, File, Request
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse, FileResponse
 
 from config.db import engine
 
 from model.user import users
 from model.usercontact import usercontact
 from model.images.user_image_profile import user_image_profile
+from model.roles.roles import roles
+from model.roles.user_roles import user_roles
 
 from schema.user_schema import UserSchema, DataUser, UserContact, verify_email, UserUpdated, UserContactUpdated, UserImg
 from schema.userToken import UserInDB, User, OAuth2PasswordRequestFormWithEmail
@@ -34,13 +38,24 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from typing import List
+from typing import List, Optional
+
+security = HTTPBearer()
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 user = APIRouter(tags=['Users'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 user.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
+
+# Definir la ruta absoluta de la carpeta de imágenes estáticas
+img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img', 'profile'))
+
+# Montar la carpeta de imágenes estáticas
+user.mount("/img", StaticFiles(directory=img_directory), name="img")
+
 
 #instancia 
 oauth2_scheme = OAuth2PasswordBearer("/api/user/login")
@@ -89,45 +104,12 @@ def verify_iden(tipid: str, gender: str):
     if gender != "M" and gender != "F":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"El Genero proporcionado '{gender}' no es correcto")
     return True
-
-async def insert_profile_image(image: UploadFile, user_id: int):
-    try:
-        print("entra en el try de insertar imagen")
-        if image.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser una imagen JPEG, JPG o PNG")
-        
-        # Leer el contenido de la imagen
-        content_profile_image = await image.read()
-        print("lee la imagen")
-        # Guardar la imagen en el sistema de archivos
-        with open(f"img/profile/{image.filename}", "wb") as file_ident:
-            file_ident.write(content_profile_image)
-        print("inserta la imagen en el sistema de archivos")
-        with engine.connect() as conn:
-            query = user_image_profile.insert().values(
-                user_id=user_id,
-                image_profile=image.filename,
-              
-            )
-            conn.execute(query)
-            conn.commit()
-            print("inserta la imagen en la bd ")
-        # Leer el contenido de la imagen en base64
-        with open(f"img/profile/{image.filename}", "rb") as file_ident:
-            base64_image = base64.b64encode(file_ident.read()).decode('utf-8')
-
-        # Devolver la imagen en base64 como parte de la respuesta JSON
-        return {
-            "saved": True,
-            "message": "Imagen guardada correctamente",
-            "image_base64": base64_image
-        }
-    except IntegrityError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
     
 @user.post("/api/user/register",  status_code=status.HTTP_201_CREATED)
-async def create_user(username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(...)):
+async def create_user(tiprol:str, request: Request,username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(None)):
+ 
     try:
+        role = verify_tiprol(tiprol)
         with engine.connect() as conn:
             name = name.title()
             last_name = last_name.title()
@@ -137,6 +119,7 @@ async def create_user(username: str = Form(...),email: EmailStr = Form(...),pass
             last_contact_id = conn.execute(select(func.max(usercontact.c.id))).scalar()
             new_user = {"id": last_id,"username": username,"email": email,"verify_email": verify_email,"password": password,"name": name,"last_name": last_name,"gender": gender,"birthdate": birthdate,"tipid": tipid,"identification": identification,"disabled": False, "verify_ident": False}
             new_contact_user = {"id": last_contact_id,"user_id": 1,"phone": phone,"country": country,"state": state,"direction": direction}
+            query_roles = conn.execute(roles.select().where(roles.c.role_name == role)).first()
             if verify_username_email(username, email):
                 if verify_iden(tipid, gender):
                     if last_id is not None:
@@ -151,8 +134,11 @@ async def create_user(username: str = Form(...),email: EmailStr = Form(...),pass
                     result = conn.execute(stmt)
                     userid = result.lastrowid
                     conn.commit()
+                    
+                    conn.execute(user_roles.insert().values(user_id=userid, role_id=query_roles[0]))
+                    conn.commit()
 
-                    send_verification_email(email, userid)
+                    send_verification_email(email, userid, request)
 
                     new_contact_user["id"] = id_contact
                     new_contact_user['user_id'] = userid
@@ -160,31 +146,33 @@ async def create_user(username: str = Form(...),email: EmailStr = Form(...),pass
                     conn.execute(save_contact)
                     conn.commit()
 #-----------------------------inserta la imagen de perfil-------------------------------------------------------------------------
-                    try:
-                        if image.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
-                            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser una imagen JPEG, JPG o PNG")
-                        content_profile_image = await image.read()
-                        with open(f"img/profile/{image.filename}", "wb") as file_ident:
-                            file_ident.write(content_profile_image)
-                        with engine.connect() as conn:
-                            query = user_image_profile.insert().values(user_id=userid,image_profile=image.filename,)
-                            conn.execute(query)
-                            conn.commit()                     
-                    except IntegrityError:
-                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
+                    if image is not None:
+                        if image.filename != '':
+                            try:
+                                if image.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
+                                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser una imagen JPEG, JPG o PNG")
+                                content_profile_image = await image.read()
+                                pr_photo = hashlib.sha256(content_profile_image).hexdigest()
+                                with open(f"img/profile/{pr_photo}.png", "wb") as file_ident:
+                                    file_ident.write(content_profile_image)
+                                with engine.connect() as conn:
+                                    query = user_image_profile.insert().values(user_id=userid, image_profile_original=image.filename, image_profile=pr_photo)
+                                    conn.execute(query)
+                                    conn.commit()     
+                                file_path_prof = f"./img/profile/{pr_photo}"
+                                image_ident = FileResponse(file_path_prof)  
+                                base_url = str(request.base_url)
+                                image_url_ident = f"{base_url.rstrip('/')}/img/profile/{pr_photo}.png"              
+                            except IntegrityError:
+                                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
+    
+                            created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": image_url_ident}
+                            return created_user  # Devolver el objeto UserSchema completo
 #--------------------------------------------------------------------------------------------------------------------------------------------
-                    created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": f"http://localhost:8000/api/image/profile/{image.filename}"}
-                    return created_user  # Devolver el objeto UserSchema completo
+                    created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": None}
+                    return created_user
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-async def verify_user_data(data_user: DataUser):
-    try:
-        if not data_user.email or not data_user.password:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="falta el usuario o contrasena")
-        return data_user
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="debe ingresar usuario y contrasena")
-
 #--------------------------LOGIN DE USUARIO ----------------------------------------
 #------------------Dependencias para token ------------------------------
 
@@ -218,39 +206,79 @@ def create_token(data: dict, time_expire: Union[datetime,None] = None):
 
     return token_jwt
 
-@user.post("/api/user/login", status_code=status.HTTP_200_OK)
-async def user_login(email: str = Form(...), password: str = Form(...)):
-  
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(users.select().where(users.c.email == email)).first()
-            if result is not None:
-                stored_password_hash = result[3]
-                if pwd_context.verify(password, stored_password_hash):
-                 
-                    user = authenticate_user(email, password)
-                    access_token_expires = timedelta(minutes=30)
-                    access_token_jwt = create_token({"sub": user.email}, access_token_expires)
-     
-                    return {
-                        "access_token": access_token_jwt,
-                        "token_types": "bearer"
-                    }
-                else:
-                    
-                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Contraseña incorrecta")
-            else:
-              
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="El email de usuario no existe")
-    except ValidationError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no se ha encontrado usuarios")
-    
-#--------------------------------EDITAR DATOS DE USUARIO-------------------------------------------
-@user.get("/api/user/show/{user_id}")
-async def edit_user(userid: int):
+def verify_tiprol(tiprol: str):
+    tiprol = tiprol.lower()
     with engine.connect() as conn:
-        user = conn.execute(users.select().where(users.c.id == userid)).first()
-        user_contact = conn.execute(usercontact.select().where(usercontact.c.user_id == userid)).first()
+        if tiprol == "patient":
+            role = conn.execute(roles.select().where(roles.c.role_name == tiprol)).first()
+            namerole = role.role_name
+            return namerole
+        if tiprol == "doctor":
+            role = conn.execute(roles.select().where(roles.c.role_name == tiprol)).first()
+            namerole = role.role_name
+            return namerole
+        if tiprol == "admin":
+            role = conn.execute(roles.select().where(roles.c.role_name == tiprol)).first()
+            namerole = role.role_name
+            return namerole
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="el parametro tiprol no encuentra el tipo de rol")
+    
+
+@user.post("/api/user/login/", status_code=status.HTTP_200_OK)
+async def user_login(tiprol: str, email: str = Form(...), password: str = Form(...)):
+        if tiprol is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El parametro query es requerido")            
+        try:
+            role = verify_tiprol(tiprol)
+            with engine.connect() as conn:
+                result = conn.execute(users.select().where(users.c.email == email)).first()
+                if result is not None:
+                    id = result.id
+                    query_role = conn.execute(roles.select().
+                                    join(user_roles, roles.c.role_id == user_roles.c.role_id).
+                                    join(users, user_roles.c.user_id == users.c.id).
+                                    where(user_roles.c.user_id == result[0]).where(roles.c.role_name==tiprol)).first()
+                    if query_role is None:
+                        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El tipo de usuario no coincide con el usuario registrado")
+                    stored_password_hash = result[3]
+                    if pwd_context.verify(password, stored_password_hash):
+                    
+                        user = authenticate_user(email, password)
+                        access_token_expires = timedelta(minutes=30)
+                        access_token_jwt = create_token({"sub": user.email}, access_token_expires)
+        
+                        return {
+                            "id_user": id,
+                            "tip_user": role,
+                            "access_token": access_token_jwt,
+                            "token_types": "bearer"
+                        }
+                    else:
+                        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
+                else:
+                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas")
+        except ValidationError:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no se ha encontrado usuarios")
+        
+#--------------------------------EDITAR DATOS DE USUARIO-------------------------------------------
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials  # Obtiene el token de las credenciales
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales de Autenticacion Invalidas")
+        # Puedes hacer alguna lógica adicional para verificar el usuario si es necesario
+        return email
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
+
+@user.get("/api/user/show/{user_id}")
+async def edit_user(user_id: int, current_user: str = Depends(get_current_user)):
+    with engine.connect() as conn:
+        user = conn.execute(users.select().where(users.c.id == user_id)).first()
+        user_contact = conn.execute(usercontact.select().where(usercontact.c.user_id == user_id)).first()
     return {
         "users":{
             "id": user[0],
@@ -272,23 +300,23 @@ async def edit_user(userid: int):
     }
     
 @user.put("/api/user/update/{user_id}")  
-async def update_users(userid: str, data_user: UserUpdated, data_user_contact: UserContactUpdated):
+async def update_users(user_id: str, data_user: UserUpdated, data_user_contact: UserContactUpdated):
     data_user.tipid = data_user.tipid.title()
     data_user.gender = data_user.gender.title()
     with engine.connect() as conn:
-        query_existing_user = conn.execute(users.select().where(users.c.username == data_user.username).where(users.c.id == userid)).first()
-        query_existing_email = conn.execute(users.select().where(users.c.email == data_user.email).where(users.c.id == userid)).first()
+        query_existing_user = conn.execute(users.select().where(users.c.username == data_user.username).where(users.c.id == user_id)).first()
+        query_existing_email = conn.execute(users.select().where(users.c.email == data_user.email).where(users.c.id == user_id)).first()
         if query_existing_user is None:
           
             
-            query_user = conn.execute(users.select().wheres(users.c.username == data_user.username).where(users.c.id != userid)).first()
+            query_user = conn.execute(users.select().wheres(users.c.username == data_user.username).where(users.c.id != user_id)).first()
        
             if query_user is not None:
                 
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {data_user.username} ya existe")
         if query_existing_email is None: 
           
-            query_email = conn.execute(users.select().where(users.c.email == data_user.email).where(users.c.id != userid)).first()
+            query_email = conn.execute(users.select().where(users.c.email == data_user.email).where(users.c.id != user_id)).first()
          
             if query_email is not None:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {data_user.email} ya se encuentra en uso")
@@ -297,19 +325,20 @@ async def update_users(userid: str, data_user: UserUpdated, data_user_contact: U
         if ident:
             new_data_user = data_user.dict()
             new_data_usercontact = data_user_contact.dict()
-            conn.execute(users.update().where(users.c.id == userid).values(new_data_user))
-            conn.execute(usercontact.update().where(usercontact.c.user_id == userid).values(new_data_usercontact))
+            conn.execute(users.update().where(users.c.id == user_id).values(new_data_user))
+            conn.execute(usercontact.update().where(usercontact.c.user_id == user_id).values(new_data_usercontact))
             conn.commit()       
         
     return Response(content="Cuenta actualizada correctamente", status_code=status.HTTP_200_OK)
 
 #---------------codigo guardado para envio de correo de verificacion---------------------   
     
-def send_verification_email(email, user_id):
+def send_verification_email(email, user_id, request: Request):
     sender_email = "andrespruebas222@gmail.com"
     sender_name = "Andres Becerra"
     subject = "Verificación de cuenta"
-    verification_link = f"http://localhost:8000/api/verify/{user_id}"
+    base_url = str(request.base_url)
+    verification_link = f"{base_url.rstrip('/')}/api/verify/{user_id}"
 
     message = MIMEMultipart("alternative")
     message["From"] = sender_email
@@ -321,14 +350,11 @@ def send_verification_email(email, user_id):
 
     message.attach(MIMEText(text, "plain"))
     message.attach(MIMEText(html, "html"))
-    print("hace el la verificacion de email")
     with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        print("inicia el server")
         server.starttls()
-        print("inicia el server")
         server.login(sender_email, "vhvcinzspvlwoftc")  # Coloca tu contraseña aquí
         server.send_message(message)
     return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK)
     
-
+#---------------------para verificar el token------------------------------------------------------------
 

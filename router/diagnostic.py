@@ -1,7 +1,7 @@
 import string
 import random
 
-from fastapi import APIRouter, File, UploadFile, HTTPException, status, Form, Response
+from fastapi import APIRouter, File, UploadFile, HTTPException, status, Form, Response, Depends
 from fastapi.responses import JSONResponse
 
 from config.db import engine
@@ -9,6 +9,8 @@ from config.db import engine
 from model.user import users
 from model.diagnostic import diagnostic
 from model.patient_consult import patient_consult
+
+from router.paciente.home import get_current_user
 
 from schema.diagnostic import DiagnosticSchema
 
@@ -20,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 routediag = APIRouter(tags=["Diagnostic"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @routediag.get("/doctor/diagnostic/{pat_consult_id}", status_code=status.HTTP_200_OK)
-async def create_diagnostic(pat_consult_id: int):
+async def create_diagnostic(pat_consult_id: int, current_user: str = Depends(get_current_user)):
     try: 
         #para generar el id random 
         number_of_strings = 5
@@ -58,7 +60,7 @@ def verify_gender(gender: date):
     return True
         
 @routediag.post("/doctor/diagnostic/new/{patconsultid}", status_code=status.HTTP_201_CREATED)
-async def create_diagnostic(patconsultid: int, diag: DiagnosticSchema):
+async def create_diagnostic(patconsultid: int, diag: DiagnosticSchema, current_user: str = Depends(get_current_user)):
     full_name = diag.patient.title()
     dict_diagnostic = diag.dict()
     with engine.connect() as conn:
@@ -82,7 +84,7 @@ async def create_diagnostic(patconsultid: int, diag: DiagnosticSchema):
     return created_diag 
         
 @routediag.delete("/doctor/diagnostic/delete/{diag_id}")
-async def delete_diagnostic(diag_id: int):
+async def delete_diagnostic(diag_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         verify_id = conn.execute(diagnostic.select().where(diagnostic.c.id == diag_id)).first()
         if verify_id is None:
