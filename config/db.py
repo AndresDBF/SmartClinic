@@ -1,12 +1,12 @@
 from sqlalchemy import create_engine, MetaData
 
-engine = create_engine("mysql+pymysql://root@localhost:3306/smartclinic")
+""" engine = create_engine("mysql+pymysql://root@localhost:3306/smartclinic")
 
 
-meta_data = MetaData()
+meta_data = MetaData() """
 
 #CODIGO PARA PEGAR EN PRODUCCION
-'''
+
 # Configuración de la conexión a la base de datos
 DB_USER = '735dev'  # Usuario de la base de datos
 DB_PASSWORD = '735dev'  # Contraseña de la base de datos 
@@ -25,4 +25,3 @@ conn = engine.connect()
 
 # Crear objeto MetaData
 meta_data = MetaData()
-'''

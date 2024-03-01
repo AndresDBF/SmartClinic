@@ -34,6 +34,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from typing import List
 
 user = APIRouter(tags=['Users'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
@@ -53,7 +54,7 @@ ALGORITHM = "HS256"
 async def root():
     return "pruebas"
 
-@user.get("/api/user", response_model=list[UserSchema])
+@user.get("/api/user", response_model=List[UserSchema])
 async def get_users():
     with engine.connect() as conn:
         result = conn.execute(users.select()).fetchall()

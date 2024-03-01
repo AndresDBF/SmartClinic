@@ -39,6 +39,7 @@ async def user_home(userid: int, request: Request):
         image = FileResponse(file_path)
         
         base_url = str(request.base_url)
-        image_url = f"{base_url.rstrip("/")}/img/profile/{image_row.image_profile}"
+        image_url = f"{base_url.rstrip('/')}/img/profile/{image_row.image_profile}"
+
         
         return {"id": userid, "image": image_url}

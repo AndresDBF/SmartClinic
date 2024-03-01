@@ -47,36 +47,33 @@ async def veri_email_ident(user_id: int):
         user = conn.execute(users.select().where(users.c.id == user_id)).first()
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El id del usuario no se ha encontrado")
-        match user.disabled:
-            case True:
-                match user.verify_ident:
-                    case True:
-                        return JSONResponse(content={
-                            "email": True,
-                            "identif": True,
-                            "message_email": "verificado",
-                            "message_identif": "verificado"
-                        }, status_code=status.HTTP_200_OK)
-                    case False:
-                        return JSONResponse(content={
-                            "email": True,
-                            "identif": False,
-                            "message_email": "verificado",
-                            "message_identif": "EN PROCESO"
-                        }, status_code=status.HTTP_200_OK)
-            case False:
-                match user.verify_ident:
-                    case True:
-                        return JSONResponse(content={
-                            "email": False,
-                            "identif": True,
-                            "message_email": "EN PROCESO",
-                            "message_identif": "verificado"
-                        }, status_code=status.HTTP_200_OK)
-                    case False:
-                        return JSONResponse(content={
-                            "email": False,
-                            "identif": False,
-                            "message_email": "EN PROCESO",
-                            "message_identif": "EN PROCESO"
-                        }, status_code=status.HTTP_200_OK)
+        if user.disabled:
+            if user.verify_ident:
+                return JSONResponse(content={
+                                    "email": True,
+                                    "identif": True,
+                                    "message_email": "verificado",
+                                    "message_identif": "verificado"
+                                }, status_code=status.HTTP_200_OK)
+            else:
+                return JSONResponse(content={
+                                    "email": True,
+                                    "identif": False,
+                                    "message_email": "verificado",
+                                    "message_identif": "EN PROCESO"
+                                }, status_code=status.HTTP_200_OK)
+        else:
+            if user.verify_ident:
+                return JSONResponse(content={
+                                    "email": False,
+                                    "identif": True,
+                                    "message_email": "EN PROCESO",
+                                    "message_identif": "verificado"
+                                }, status_code=status.HTTP_200_OK)
+            else:
+                return JSONResponse(content={
+                                        "email": False,
+                                        "identif": False,
+                                        "message_email": "EN PROCESO",
+                                        "message_identif": "EN PROCESO"
+                                    }, status_code=status.HTTP_200_OK)

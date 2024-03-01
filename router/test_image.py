@@ -26,7 +26,8 @@ def get_file(name_file: str, request: Request):
     image = FileResponse(file_path)
     
     base_url = str(request.base_url)
-    image_url = f"{base_url.rstrip("/")}/img/profile/{name_file}"
+    image_url = f"{base_url.rstrip('/')}/img/profile/{name_file}"
+
     
     return {"id": 1, "image": image_url}
     
