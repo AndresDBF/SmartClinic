@@ -58,7 +58,7 @@ async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_
         
         # No es necesario utilizar zip para combinar los datos
         # Simplemente puedes retornar uno de los modelos
-        return Antecedent(**new_data_per_antec)
+        return AntecedentSchema(**new_data_per_antec)
 
 
 
