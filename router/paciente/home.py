@@ -38,7 +38,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
 
-@userhome.get("/home/{userid}")
+@userhome.get("/api/home/{userid}")
 async def user_home(userid: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         # Obtener el usuario
@@ -57,7 +57,7 @@ async def user_home(userid: int, request: Request, current_user: str = Depends(g
             image = FileResponse(file_path)
             
             base_url = str(request.base_url)
-            image_url = f"{base_url.rstrip('/')}/img/profile/{image_row.image_profile}"
+            image_url = f"{base_url.rstrip('/')}/img/profile/{image_row.image_profile}.png"
             
             return {"id": userid, "image": image_url}
         return {"id": userid, "image": None}

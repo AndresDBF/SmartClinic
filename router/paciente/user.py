@@ -167,7 +167,7 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
                                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
     
                             created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": image_url_ident}
-                            return created_user  # Devolver el objeto UserSchema completo
+                            return created_user  
 #--------------------------------------------------------------------------------------------------------------------------------------------
                     created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": None}
                     return created_user
