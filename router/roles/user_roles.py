@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Form, Response
+from fastapi.responses import JSONResponse
 from config.db import engine
 from model.roles.roles import roles
 from model.user import users
@@ -11,6 +12,15 @@ from sqlalchemy import insert, select, func
 
 routeuserrol = APIRouter(tags=['User_Roles'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
+async def verify_rol(user_id: int):
+    with engine.connect() as conn:
+        verify = conn.execute(user_roles.select().where(user_roles.c.user_id==user_id)).first()
+        if verify is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ha ocurrido un error al buscar el rol del usuario")
+        return {
+            "user_id": verify[0],
+            "role_id": verify[1]
+        }
 
 @routeuserrol.get("/admin/userroles/user", status_code=status.HTTP_200_OK)
 async def get_userroles():

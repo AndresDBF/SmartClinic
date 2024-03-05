@@ -21,16 +21,16 @@ async def get_rules():
         query = conn.execute(roles.select()).fetchall()
         if not query:
             roles_data = [
-                {"role_id": 1, "role_name": "Usuario"},
-                {"role_id": 2, "role_name": "Doctor"}
+                {"role_id": 1, "role_name": "Admin"},
+                {"role_id": 2, "role_name": "Patient"},
+                {"role_id": 3, "role_name": "Doctor"},
             ]
             conn.execute(roles.insert(), roles_data)
             conn.commit()
             query = conn.execute(roles.select()).fetchall()
-            print(query)
-            print(roles_data)
+
             return roles_data  # Devuelve los datos predeterminados en lugar de una lista vacía
-        print("va fuera del if")
+
         list_roles = [
             {
                 "role_id": row[0],

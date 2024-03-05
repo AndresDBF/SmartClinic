@@ -11,6 +11,7 @@ from model.diagnostic import diagnostic
 from model.patient_consult import patient_consult
 
 from router.paciente.home import get_current_user
+from router.roles.user_roles import verify_rol
 
 from schema.diagnostic import DiagnosticSchema
 
@@ -41,6 +42,9 @@ async def create_diagnostic(pat_consult_id: int, current_user: str = Depends(get
                                 where(patient_consult.c.id == pat_consult_id)).first()
             if user is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado ningun dato")
+            ver_user = await verify_rol(user[0])
+            if ver_user["role_id"] == 2:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
         json_user = {
             "idpatconsult": pat_consult_id,
             "id_atent": id,
@@ -61,10 +65,13 @@ def verify_gender(gender: date):
         
 @routediag.post("/doctor/diagnostic/new/{patconsultid}", status_code=status.HTTP_201_CREATED)
 async def create_diagnostic(patconsultid: int, diag: DiagnosticSchema, current_user: str = Depends(get_current_user)):
-    full_name = diag.patient.title()
-    dict_diagnostic = diag.dict()
     with engine.connect() as conn:
         verify_patconsult = conn.execute(patient_consult.select().where(patient_consult.c.id == patconsultid)).first()
+        ver_user = await verify_rol(verify_patconsult[1])
+        if ver_user["role_id"] == 2:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
+        full_name = diag.patient.title()
+        dict_diagnostic = diag.dict()
         if verify_patconsult is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el id de la consulta para el paciente")
         if verify_gender(diag.gender):

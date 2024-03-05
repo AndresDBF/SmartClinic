@@ -19,8 +19,8 @@ from router.doctor import routedoc
 from router.paciente.user import user
 from router.paciente.validate_image import imageuser
 from router.paciente.verif_email import email
-from router.roles.roles import routerol
-from router.roles.user_roles import routeuserrol
+""" from router.roles.roles import routerol
+from router.roles.user_roles import routeuserrol """
 from router.tipconsult import routetipco
 from router.diagnostic import routediag
 from router.inf_medic import routeim

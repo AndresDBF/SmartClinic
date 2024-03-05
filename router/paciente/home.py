@@ -10,6 +10,7 @@ from model.user import users
 from model.images.user_image_profile import user_image_profile
 
 from router.paciente.user import SECRET_KEY, ALGORITHM
+from router.roles.user_roles import verify_rol
 
 from jose import jwt, JWTError
 
@@ -40,6 +41,9 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @userhome.get("/api/home/{userid}")
 async def user_home(userid: int, request: Request, current_user: str = Depends(get_current_user)):
+    ver_user = await verify_rol(userid)
+    if ver_user["role_id"] == 3:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
     with engine.connect() as conn:
         # Obtener el usuario
         user = conn.execute(users.select().where(users.c.id == userid)).first()

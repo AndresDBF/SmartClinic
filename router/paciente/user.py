@@ -69,7 +69,7 @@ ALGORITHM = "HS256"
 async def root():
     return "pruebas"
 
-@user.get("/api/user", response_model=List[UserSchema])
+@user.get("/api/user/test", response_model=List[UserSchema])
 async def get_users():
     with engine.connect() as conn:
         result = conn.execute(users.select()).fetchall()
@@ -77,7 +77,7 @@ async def get_users():
         
         return result
     
-@user.get("/api/user/{user_id}", response_model=UserSchema, status_code=status.HTTP_200_OK)
+@user.get("/api/user/test/{user_id}", response_model=UserSchema, status_code=status.HTTP_200_OK)
 async def get_user(user_id: str):
     with engine.connect() as conn:
         result = conn.execute(users.select().where(users.c.id == user_id)).first()         

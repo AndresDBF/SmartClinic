@@ -20,6 +20,7 @@ from model.family_antecedent import family_antecedent
 from sqlalchemy import select, insert, func
 
 from router.paciente.home import get_current_user
+from router.roles.user_roles import verify_rol
 
 
 routedoc = APIRouter(tags=["Doctor"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
@@ -30,6 +31,8 @@ async def get_doctors(current_user: str = Depends(get_current_user)):
         data_doctors = conn.execute(users.select().
                                     join(user_roles, users.c.id == user_roles.c.user_id).
                                     where(user_roles.c.role_id==2)).fetchall()
+        if data_doctors is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No hay doctores registrados")
         experience = conn.execute(experience_doctor.select().
                                     join(users, experience_doctor.c.user_id==users.c.id).
                                     join(user_roles, users.c.id==user_roles.c.user_id).

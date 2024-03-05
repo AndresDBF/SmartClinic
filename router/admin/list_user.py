@@ -114,27 +114,36 @@ async def list_users(request: Request):
 
 
 @luser.post("/admin/searchuser")
-async def search_user(name: str,request: Request):
+async def search_user(name: str, request: Request):
     with engine.connect() as conn:
         name_parts = name.split()
-        print(name_parts)
+        
         # Obtener el primer y último nombre
         first_name = name_parts[0]
         last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
 
         # Realizar la búsqueda combinada
-        name_user = conn.execute(users.select().where(
-            and_(
-                users.c.name.like(f'%{first_name}%'),
-                users.c.last_name.like(f'%{last_name}%')
-            )
-        ).where(
+        query = users.select().where(
             or_(
-                users.c.last_name.like(f'%{last_name}%'),
-                users.c.name.like(f'%{first_name}%')
-            ))).fetchall()
+                and_(
+                    users.c.name.like(f'%{first_name}%'),
+                    users.c.last_name.like(f'%{last_name}%')
+                ),
+                and_(
+                    users.c.last_name.like(f'%{last_name}%'),
+                    users.c.name.like(f'%{first_name}%')
+                ),
+                users.c.name.like(f'%{name}%'),  # Búsqueda solo por nombre
+                users.c.last_name.like(f'%{name}%')  # Búsqueda solo por apellido
+            )
+        )
+        
+        name_user = conn.execute(query).fetchall()
+        
         if not name_user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se han encontrado usuarios para verificarse")
+            
+
 
         # Obtener datos de usuario y de contacto
         list_user = [

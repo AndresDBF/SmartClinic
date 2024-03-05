@@ -24,6 +24,7 @@ class PersonalHobbieSchema(BaseModel):
 class FamilyAntecedentSchema(BaseModel):
     disease_mother: str
     disease_father: str
+ 
 
 class Antecedent: 
     hypertension: bool
