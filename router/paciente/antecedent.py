@@ -22,6 +22,8 @@ from sqlalchemy import select, insert, func
 
 from typing import List
 
+from datetime import datetime
+
 
 routeantec = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
@@ -102,6 +104,7 @@ async def new_antecedent(user_id: int):
     return user[0]
 
 
+
 @routeantec.post("/api/createantec/", response_model=Antecedent)
 async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_per_habit: List[PersonalHobbieSchema], data_fam_antec: FamilyAntecedentSchema):
     with engine.connect() as conn:
@@ -111,31 +114,21 @@ async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_
         user = conn.execute(users.select().where(users.c.id==userid)).first()
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
-
+        new_data_per_antec['created_at'] = datetime.now()
         conn.execute(person_antecedent.insert().values(user_id=userid, **new_data_per_antec))
         conn.commit()
         
         for item in data_per_habit:
             consumed_bool = item.consumed_value
             consumed_str = item.consumed_text
-            conn.execute(personal_habit.insert().values(user_id=userid, consumed_value = consumed_bool, consumed_text=consumed_str))
+            # Aquí se agrega el valor para created_at
+            conn.execute(personal_habit.insert().values(user_id=userid, consumed_value=consumed_bool, consumed_text=consumed_str, created_at=datetime.now()))
             conn.commit()
         
         conn.execute(family_antecedent.insert().values(user_id=userid, **new_data_fam_antec))
         conn.commit()
 
-        """ # Crear una lista de instancias PersonalHobbieSchema
-        personal_hobbies = [PersonalHobbieSchema(**habit.dict()) for habit in data_per_habit]
-
-        combined_data = {
-            "antecedent": AntecedentSchema(**new_data_per_antec),
-            "personal_hobbie": personal_hobbies,  # Pasar la lista de instancias
-            "family_antecedent": FamilyAntecedentSchema(**new_data_fam_antec)
-        } """
-
         return JSONResponse(content={"saved": True, "message": "Antecedente creado correctamente"}, status_code=status.HTTP_200_OK)
 
-
- 
 
     

@@ -46,6 +46,9 @@ class UserContactUpdated(BaseModel):
     state: str
     direction: str
     
+class UserImageProfile(BaseModel):
+    image: UploadFile = File()
+    
 class verify_email(BaseModel):
     verify_email: EmailStr
     

@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Table, ForeignKey, Index, Boolean, String, TIMESTAMP, Integer
 from sqlalchemy.sql.schema import MetaData
+from sqlalchemy.sql import func
 from config.db import meta_data, engine
 
 person_antecedent = Table(
@@ -26,7 +27,7 @@ person_antecedent = Table(
     Column("disease_six_mounths_text", String(250), nullable=True),
     Column("last_visit_medic", String(250), nullable=True),
     Column("visit_especiality", String(250), nullable=True),
-    Column("created_at", TIMESTAMP, nullable=False)
+    Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
 )
 
 # Crear la tabla solo si no existe

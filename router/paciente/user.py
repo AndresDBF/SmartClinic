@@ -14,7 +14,7 @@ from model.images.user_image_profile import user_image_profile
 from model.roles.roles import roles
 from model.roles.user_roles import user_roles
 
-from schema.user_schema import UserSchema, DataUser, UserContact, verify_email, UserUpdated, UserContactUpdated, UserImg
+from schema.user_schema import UserSchema, DataUser, UserContact, verify_email, UserUpdated, UserContactUpdated, UserImageProfile
 from schema.userToken import UserInDB, User, OAuth2PasswordRequestFormWithEmail
 
 from passlib.context import CryptContext
@@ -164,11 +164,57 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
                                 image_url_ident = f"{base_url.rstrip('/')}/img/profile/{pr_photo}.png"              
                             except IntegrityError:
                                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
-    
-                            created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": image_url_ident}
-                            return created_user  
+                          
+                            if pwd_context.verify(password, hashed_password):
+                            
+                                user = authenticate_user(email, password)
+                                access_token_expires = timedelta(minutes=30)
+                                access_token_jwt = create_token({"sub": user.email}, access_token_expires)
+                                created_user = {
+                                    "user":{
+                                        "id": userid,
+                                        "username": new_user["username"],
+                                        "email": new_user["email"],
+                                        "name": new_user["name"],
+                                        "last_name": new_user["last_name"],
+                                        "gender": new_user["gender"],
+                                        "birthdate": new_user["birthdate"],
+                                        "tipid": new_user["tipid"],
+                                        "identification": new_user["identification"],
+                                        "disabled": new_user["disabled"],
+                                        "urlimage": None
+                                    },
+                                    "token":{
+                                        "access_token": access_token_jwt,
+                                        "token_types": "bearer"
+                                    }
+                                }
+                            
+                                return created_user  
 #--------------------------------------------------------------------------------------------------------------------------------------------
-                    created_user = {"id": userid,"username": new_user["username"],"email": new_user["email"],"name": new_user["name"],"last_name": new_user["last_name"],"gender": new_user["gender"],"birthdate": new_user["birthdate"],"tipid": new_user["tipid"],"identification": new_user["identification"],"disabled": new_user["disabled"],"urlimage": None}
+                    if pwd_context.verify(password, hashed_password):    
+                        user = authenticate_user(email, password)
+                        access_token_expires = timedelta(minutes=30)
+                        access_token_jwt = create_token({"sub": user.email}, access_token_expires)
+                    created_user = {
+                        "user":{
+                             "id": userid,
+                            "username": new_user["username"],
+                            "email": new_user["email"],
+                            "name": new_user["name"],
+                            "last_name": new_user["last_name"],
+                            "gender": new_user["gender"],
+                            "birthdate": new_user["birthdate"],
+                            "tipid": new_user["tipid"],
+                            "identification": new_user["identification"],
+                            "disabled": new_user["disabled"],
+                            "urlimage": None
+                        },
+                        "token":{
+                            "access_token": access_token_jwt,
+                            "token_types": "bearer"
+                        }
+                    }
                     return created_user
     except ValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -274,10 +320,44 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
 
 @user.get("/api/user/show/{user_id}")
-async def edit_user(user_id: int, current_user: str = Depends(get_current_user)):
+async def edit_user(user_id: int, request: Request):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id == user_id)).first()
         user_contact = conn.execute(usercontact.select().where(usercontact.c.user_id == user_id)).first()
+        profile = conn.execute(select(user_image_profile.c.image_profile_original,
+                                    user_image_profile.c.image_profile).select_from(user_image_profile).
+                               join(users, user_image_profile.c.user_id==users.c.id).
+                               where(users.c.id == user_id)).first()
+   
+    if profile is not None:
+        file_path_file = f"./img/profile/{profile.image_profile}.png"
+        if not os.path.exists(file_path_file):
+            return {"error": "La imagen de perfil no existe"}
+        prof_img = FileResponse(file_path_file)
+        base_url = str(request.base_url)
+        url_image = f"{base_url.rstrip('/')}/img/profile/{profile.image_profile}.png" 
+        return {
+            "users":{
+                "id": user[0],
+                "username": user[1],	
+                "email": user[2],		
+                "name": user[4],	
+                "last_name": user[5],		
+                "birthdate": user[6],
+                "gender": user[7],	
+                "tipid": user[8],		
+                "identification": user[9]
+            },
+            "usercontact":{
+                "phone": user_contact[2],	
+                "country": user_contact[3],	
+                "state": user_contact[4],	
+                "direction": user_contact[5]
+            },
+            "image_profile":{
+                "url_profile": url_image
+            }
+        }
     return {
         "users":{
             "id": user[0],
@@ -288,7 +368,7 @@ async def edit_user(user_id: int, current_user: str = Depends(get_current_user))
             "birthdate": user[6],
             "gender": user[7],	
             "tipid": user[8],		
-            "identification": user[9],
+            "identification": user[9]
         },
         "usercontact":{
             "phone": user_contact[2],	
@@ -299,34 +379,99 @@ async def edit_user(user_id: int, current_user: str = Depends(get_current_user))
     }
     
 @user.put("/api/user/update/{user_id}")  
-async def update_users(user_id: str, data_user: UserUpdated, data_user_contact: UserContactUpdated):
-    data_user.tipid = data_user.tipid.title()
-    data_user.gender = data_user.gender.title()
+async def create_user(
+    user_id: int,
+    tiprol:str,
+    request: Request,
+    username: str = Form(None),
+    email: EmailStr = Form(None),
+    name: str = Form(None),
+    last_name: str = Form(None),
+    gender: str = Form(None),
+    birthdate: date = Form(None),
+    tipid: str = Form(None),
+    identification: int = Form(None),
+    phone: str = Form(None),
+    country: str = Form(None),
+    state: str = Form(None),
+    direction: str = Form(None),
+    image: UploadFile = File(None)):
+    
+    update_user = {}
+    update_contact_user = {}
+    
+    if username:
+        update_user["username"] = username
+    if email:
+        update_user["email"] = email
+    if name:
+        update_user["name"] = name
+    if last_name:
+        update_user["last_name"] = last_name
+    if gender:
+        gender = gender.title()
+        if gender != "M" and gender != "F":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"El Genero proporcionado '{gender}' no es correcto")
+        update_user["gender"] = gender
+    if birthdate:
+        update_user["birthdate"] = birthdate
+    if tipid:
+        tipid = tipid.title()
+        if tipid != "V" and tipid != "J" and tipid != "E":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"El tipo de identificacion '{tipid}' no es correcto")
+        update_user["tipid"] = tipid     
+    if identification:
+        update_user["identification"] = identification
+    if phone:
+        update_contact_user["phone"] = phone
+    if country:
+        update_contact_user["country"] = country
+    if state:
+        update_contact_user["state"] = state
+    if direction:
+        update_contact_user["direction"] = direction
+        
     with engine.connect() as conn:
-        query_existing_user = conn.execute(users.select().where(users.c.username == data_user.username).where(users.c.id == user_id)).first()
-        query_existing_email = conn.execute(users.select().where(users.c.email == data_user.email).where(users.c.id == user_id)).first()
+        #verificando email y username
+        query_existing_user = conn.execute(users.select().where(users.c.username == username)).first()
+        query_existing_email = conn.execute(users.select().where(users.c.email == email)).first()
         if query_existing_user is None:
-          
-            
-            query_user = conn.execute(users.select().wheres(users.c.username == data_user.username).where(users.c.id != user_id)).first()
-       
+            query_user = conn.execute(users.select().where(users.c.username == username).where(users.c.id != user_id)).first()
             if query_user is not None:
-                
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {data_user.username} ya existe")
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {username} ya existe")
         if query_existing_email is None: 
           
-            query_email = conn.execute(users.select().where(users.c.email == data_user.email).where(users.c.id != user_id)).first()
+            query_email = conn.execute(users.select().where(users.c.email == email).where(users.c.id != user_id)).first()
          
             if query_email is not None:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {data_user.email} ya se encuentra en uso")
-  
-        ident = verify_iden(data_user.tipid, data_user.gender)
-        if ident:
-            new_data_user = data_user.dict()
-            new_data_usercontact = data_user_contact.dict()
-            conn.execute(users.update().where(users.c.id == user_id).values(new_data_user))
-            conn.execute(usercontact.update().where(usercontact.c.user_id == user_id).values(new_data_usercontact))
-            conn.commit()       
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {email} ya se encuentra en uso")
+        #insertando data 
+        if image is not None:
+            if image.filename != '':
+                try:
+                    if image.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser una imagen JPEG, JPG o PNG")
+                    content_profile_image = await image.read()
+                    pr_photo = hashlib.sha256(content_profile_image).hexdigest()
+                    with open(f"img/profile/{pr_photo}.png", "wb") as file_ident:
+                        file_ident.write(content_profile_image)
+                    with engine.connect() as conn:
+                        query = user_image_profile.insert().values(user_id=query_existing_user.id, image_profile_original=image.filename, image_profile=pr_photo)
+                        conn.execute(query)
+                        conn.commit()     
+                    file_path_prof = f"./img/profile/{pr_photo}"
+                    image_ident = FileResponse(file_path_prof)  
+                    base_url = str(request.base_url)
+                    image_url = f"{base_url.rstrip('/')}/img/profile/{pr_photo}.png"    
+                    update_user["profile_image"] = image_url
+                except IntegrityError:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
+        
+        conn.execute(users.update().where(users.c.id == user_id).values(update_user))
+        conn.execute(usercontact.update().where(usercontact.c.user_id == user_id).values(**update_contact_user))
+        conn.commit()       
+        if email:
+            send_verification_email(email, user_id, request)
         
     return Response(content="Cuenta actualizada correctamente", status_code=status.HTTP_200_OK)
 
@@ -356,4 +501,3 @@ def send_verification_email(email, user_id, request: Request):
     return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK)
     
 #---------------------para verificar el token------------------------------------------------------------
-
