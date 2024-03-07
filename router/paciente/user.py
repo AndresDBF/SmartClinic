@@ -40,6 +40,8 @@ from fastapi.templating import Jinja2Templates
 
 from typing import List, Optional
 
+from router.logout import SECRET_KEY, ALGORITHM
+
 security = HTTPBearer()
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
@@ -61,9 +63,6 @@ user.mount("/img", StaticFiles(directory=img_directory), name="img")
 oauth2_scheme = OAuth2PasswordBearer("/api/user/login")
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-
-SECRET_KEY = "0d227dc4d6ac7f607f532c85f5d8770215f3aa12398645b3bb74f09f1ebcbd51"
-ALGORITHM = "HS256"
 
 @user.get("/")
 async def root():

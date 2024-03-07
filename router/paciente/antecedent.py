@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Form
 from fastapi.responses import  JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -10,15 +10,17 @@ from model.images.user_image import user_image
 from model.experience_doctor import experience_doctor
 from model.usercontact import usercontact
 from model.person_antecedent import person_antecedent
-from model.person_hobbie import person_hobbie
+from model.person_habit import personal_habit
 from model.family_antecedent import family_antecedent
-
-from sqlalchemy import select, insert, func
 
 from router.paciente.home import get_current_user
 from router.roles.user_roles import verify_rol
 
-from schema.antecedent_schema import Antecedent, AntecedentSchema, PersonalHobbieSchema, FamilyAntecedentSchema
+from schema.antecedent_schema import AntecedentSchema, PersonalHobbieSchema, FamilyAntecedentSchema, Antecedent
+
+from sqlalchemy import select, insert, func
+
+from typing import List
 
 
 routeantec = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
@@ -38,9 +40,9 @@ async def user_antecedent(user_id: int):
         ).fetchall()
 
         per_hob = conn.execute(
-            person_hobbie.select()
-            .where(person_hobbie.c.user_id == user_id)
-            .order_by(person_hobbie.c.created_at.asc())
+            personal_habit.select()
+            .where(personal_habit.c.user_id == user_id)
+            .order_by(personal_habit.c.created_at.asc())
         ).fetchall()
 
         ant_fam = conn.execute(
@@ -54,16 +56,26 @@ async def user_antecedent(user_id: int):
                 "hypertension": row[2],
                 "diabetes": row[3],
                 "asthma": row[4],
-                "allergy_medicine": row[5],
-                "allergy_foot": row[6],
-                "other_condition": row[7],
-                "operated": row[8],
-                "take_medicine": row[9],
-                "religion": row[10],
-                "job_occupation": row[11],
-                "disease_six_mounths": row[12],
-                "last_visit_medic": row[13],
-                "visit_especiality": row[14]
+                "allergy_medicine_value": row[5],
+                "allergy_medicine_text": row[6],
+                "allergy_foot_value": row[7],
+                "allergy_foot_text": row[8],
+                "other_condition_value": row[9],
+                "other_condition_text": row[10],
+                "operated_value": row[11],
+                "operated_text": row[12],
+                "take_medicine_value": row[13],
+                "take_medicine_text": row[14],
+                "religion_value": row[15],
+                "religion_text": row[16],
+                "job_occupation_value": row[17],
+                "job_occupation_text": row[18],
+                "disease_six_mounths_value": row[19],
+                "disease_six_mounths_text": row[20],
+                "last_visit_medic_value": row[21],
+                "last_visit_medic_text": row[22],
+                "visit_especiality_value": row[23],
+                "visit_especiality_text": row[24]
             }
             for row in per_ant
         ]
@@ -90,16 +102,10 @@ async def new_antecedent(user_id: int):
     return user[0]
 
 
-from fastapi import HTTPException, status
-
-@routeantec.post("/api/createantec/", response_model=AntecedentSchema)
-async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_per_hobb: PersonalHobbieSchema, data_fam_antec: FamilyAntecedentSchema):
-    ver_user = await verify_rol(userid)
-    if ver_user["role_id"] == 3:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
+@routeantec.post("/api/createantec/", response_model=Antecedent)
+async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_per_habit: List[PersonalHobbieSchema], data_fam_antec: FamilyAntecedentSchema):
     with engine.connect() as conn:
         new_data_per_antec = data_per_antec.dict()
-        new_data_per_hobb = data_per_hobb.dict()
         new_data_fam_antec = data_fam_antec.dict()
         
         user = conn.execute(users.select().where(users.c.id==userid)).first()
@@ -108,16 +114,28 @@ async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_
 
         conn.execute(person_antecedent.insert().values(user_id=userid, **new_data_per_antec))
         conn.commit()
-
-        conn.execute(person_hobbie.insert().values(user_id=userid, **new_data_per_hobb))
-        conn.commit()
-
+        
+        for item in data_per_habit:
+            consumed_bool = item.consumed_value
+            consumed_str = item.consumed_text
+            conn.execute(personal_habit.insert().values(user_id=userid, consumed_value = consumed_bool, consumed_text=consumed_str))
+            conn.commit()
+        
         conn.execute(family_antecedent.insert().values(user_id=userid, **new_data_fam_antec))
         conn.commit()
-        
 
-        return AntecedentSchema(**new_data_per_antec)
+        """ # Crear una lista de instancias PersonalHobbieSchema
+        personal_hobbies = [PersonalHobbieSchema(**habit.dict()) for habit in data_per_habit]
+
+        combined_data = {
+            "antecedent": AntecedentSchema(**new_data_per_antec),
+            "personal_hobbie": personal_hobbies,  # Pasar la lista de instancias
+            "family_antecedent": FamilyAntecedentSchema(**new_data_fam_antec)
+        } """
+
+        return JSONResponse(content={"saved": True, "message": "Antecedente creado correctamente"}, status_code=status.HTTP_200_OK)
 
 
+ 
 
     

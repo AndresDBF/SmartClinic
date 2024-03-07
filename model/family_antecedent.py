@@ -6,8 +6,10 @@ from config.db import meta_data, engine
 family_antecedent = Table("family_antecedent", meta_data, 
                           Column("id", Integer, primary_key=True, nullable=False),
                           Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
-                          Column("disease_mother", String(250), nullable=False),
-                          Column("disease_father", String(250), nullable=False),
+                          Column("disease_mother_value", String(250), nullable=False),
+                          Column("disease_mother_text", String(250), nullable=True),
+                          Column("disease_father_value", String(250), nullable=False),
+                          Column("disease_father_text", String(250), nullable=True),
                           Column("created_at", TIMESTAMP, nullable=False)
 )
 

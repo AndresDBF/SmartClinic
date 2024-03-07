@@ -13,11 +13,7 @@ from datetime import datetime
 from sqlalchemy import select, insert, func
 from sqlalchemy.exc import IntegrityError
 
-
-
 routetipco = APIRouter(tags=["Tip Consult"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
-
-
 
 @routetipco.get("/api/user/tcm/{user_id}")
 async def get_tip_consult(userid: int, current_user: str = Depends(get_current_user)):

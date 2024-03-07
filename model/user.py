@@ -15,6 +15,6 @@ users = Table("users", meta_data,
               Column("identification", Numeric, nullable= False),
               Column("disabled", Boolean, nullable= False, default=False),
               Column("verify_ident", Boolean, nullable=False, default=False)
-              )
+)
 
 meta_data.create_all(engine)
