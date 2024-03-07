@@ -66,6 +66,13 @@ pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 @user.get("/")
 async def root():
+    with engine.connect() as conn:
+        new_user = {}
+        new_user["name"] = "Andres"
+        new_user["last_name"] = "becerra"
+        print(new_user)
+        conn.execute(users.update().where(users.c.id == 26).values(new_user))
+        conn.commit()
     return "pruebas"
 
 @user.get("/api/user/test", response_model=List[UserSchema])
@@ -182,7 +189,7 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
                                         "tipid": new_user["tipid"],
                                         "identification": new_user["identification"],
                                         "disabled": new_user["disabled"],
-                                        "urlimage": None
+                                        "urlimage":  image_url_ident      
                                     },
                                     "token":{
                                         "access_token": access_token_jwt,
@@ -433,18 +440,12 @@ async def create_user(
         
     with engine.connect() as conn:
         #verificando email y username
-        query_existing_user = conn.execute(users.select().where(users.c.username == username)).first()
-        query_existing_email = conn.execute(users.select().where(users.c.email == email)).first()
-        if query_existing_user is None:
-            query_user = conn.execute(users.select().where(users.c.username == username).where(users.c.id != user_id)).first()
-            if query_user is not None:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {username} ya existe")
-        if query_existing_email is None: 
-          
-            query_email = conn.execute(users.select().where(users.c.email == email).where(users.c.id != user_id)).first()
-         
-            if query_email is not None:
-                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {email} ya se encuentra en uso")
+        query_existing_user = conn.execute(users.select().where(users.c.username == username).where(users.c.id != user_id)).first()
+        query_existing_email = conn.execute(users.select().where(users.c.email == email).where(users.c.id != user_id)).first()
+        if query_existing_user is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {username} ya existe")
+        if query_existing_email is not None:             
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {email} ya se encuentra en uso")
         #insertando data 
         if image is not None:
             if image.filename != '':
@@ -463,14 +464,22 @@ async def create_user(
                     image_ident = FileResponse(file_path_prof)  
                     base_url = str(request.base_url)
                     image_url = f"{base_url.rstrip('/')}/img/profile/{pr_photo}.png"    
-                    update_user["profile_image"] = image_url
+                    conn.execute = (user_image_profile.update().where(user_image_profile.c.id==user_id).values(image_profile_original=image.filename, image_profile=pr_photo))
+                    conn.commit
                 except IntegrityError:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
-        
-        conn.execute(users.update().where(users.c.id == user_id).values(update_user))
-        conn.execute(usercontact.update().where(usercontact.c.user_id == user_id).values(**update_contact_user))
-        conn.commit()       
-        if email:
+        print(update_user)
+        print(update_contact_user)
+        try:
+            if update_user:
+                conn.execute(users.update().where(users.c.id == user_id).values(update_user))
+                conn.commit()
+            if update_contact_user:
+                conn.execute(usercontact.update().where(usercontact.c.user_id == user_id).values(update_contact_user))
+                conn.commit()       
+        except IntegrityError: 
+            return Response(content="No se actualizaron datos", status_code=status.HTTP_304_NOT_MODIFIED)
+        if email is not None:
             send_verification_email(email, user_id, request)
         
     return Response(content="Cuenta actualizada correctamente", status_code=status.HTTP_200_OK)
