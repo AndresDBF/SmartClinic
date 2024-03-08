@@ -28,7 +28,7 @@ from router.roles.user_roles import verify_rol
 routedoc = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @routedoc.get("/doctor/listdocs")
-async def get_doctors():
+async def get_doctors(current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         data_doctors = conn.execute(users.select().
                                     join(user_roles, users.c.id == user_roles.c.user_id).
@@ -61,7 +61,7 @@ async def get_doctors():
     return list_docts
 
 @routedoc.get("/doctor/assigndoc/")
-async def assign_doctor(request: Request, user_id: int):
+async def assign_doctor(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         veri_user = conn.execute(users.select().where(users.c.id==user_id)).first()
         if veri_user is None:

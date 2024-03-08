@@ -10,4 +10,4 @@ usercontact = Table("usercontact", meta_data,
                     Column("state", String(191), nullable=True),
                     Column("direction", String(191),nullable=True))  
 
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)

@@ -6,7 +6,7 @@ from config.db import engine
 from model.tip_consult import tip_consult
 from model.patient_consult import patient_consult
 
-from router.paciente.home import get_current_user
+from router.logout import get_current_user
 
 from datetime import datetime
 

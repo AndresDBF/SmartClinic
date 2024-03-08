@@ -17,8 +17,9 @@ from model.inf_medic import inf_medic
 from model.medical_exam import medical_exam
 from model.roles.user_roles import user_roles
 
-from router.paciente.user import SECRET_KEY, ALGORITHM
+from router.logout import get_current_user
 from router.roles.user_roles import verify_rol
+
 
 from jose import jwt, JWTError
 
@@ -27,7 +28,7 @@ userexam = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"mes
 
 
 @userexam.get("/api/user/myexam/")
-async def list_user_exam(user_id: int, request: Request):
+async def list_user_exam(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         exams = conn.execute(
             select(medical_exam.c.id,
@@ -85,7 +86,7 @@ async def list_user_exam(user_id: int, request: Request):
     return data_list
 
 @userexam.post("/api/user/updateexam/", status_code=status.HTTP_201_CREATED)
-async def update_exam(exam_id: int, request: Request, file: UploadFile = File(None), photo: UploadFile = File(None)):
+async def update_exam(exam_id: int, request: Request, file: UploadFile = File(None), photo: UploadFile = File(None),  current_user: str = Depends(get_current_user)):
     if file is not None and photo is not None:
         if file.filename != '' and photo.filename != '':
             url_files = await insert_two_files_exam(exam_id, request, file, photo)

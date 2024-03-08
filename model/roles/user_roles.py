@@ -8,6 +8,6 @@ user_roles = Table("user_roles", meta_data,
 )
 
 
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)
 
 

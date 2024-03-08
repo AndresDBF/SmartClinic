@@ -7,7 +7,7 @@ roles = Table("roles", meta_data,
               Column("role_name", String(191), nullable=False, unique=True))
 
 
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)
 
 
 with engine.connect() as conn:

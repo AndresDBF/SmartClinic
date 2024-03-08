@@ -12,18 +12,19 @@ from router.logout import get_current_user
 from router.roles.user_roles import verify_rol
 
 
+
 # Obtener la ruta absoluta del directorio raíz del proyecto
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-patienthome = APIRouter(tags=["Patient Home"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+doctorhome = APIRouter(tags=["Doctor Home"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 # Definir la ruta absoluta de la carpeta de imágenes estáticas
 img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img', 'profile'))
 
 # Montar la carpeta de imágenes estáticas
-patienthome.mount("/img", StaticFiles(directory=img_directory), name="img")
+doctorhome.mount("/img", StaticFiles(directory=img_directory), name="img")
 
-@patienthome.get("/api/home/{userid}")
+@doctorhome.get("/doctor/home/{userid}")
 async def user_home(userid: int, request: Request, current_user: str = Depends(get_current_user)):
     ver_user = await verify_rol(userid)
     print(ver_user)
@@ -54,5 +55,3 @@ async def user_home(userid: int, request: Request, current_user: str = Depends(g
             
             return {"id": userid, "image": image_url}
         return {"id": userid, "image": None}
-
-

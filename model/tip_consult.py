@@ -7,4 +7,4 @@ tip_consult = Table("tip_consult",meta_data,
                    Column("tipconsult",String(30), nullable=False)
 )
 
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)

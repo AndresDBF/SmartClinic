@@ -12,4 +12,4 @@ files_medical_exam_pat = Table("files_medical_exam_pat", meta_data,
                     Column("created_at", TIMESTAMP, nullable=False)
 )
                    
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)

@@ -13,7 +13,7 @@ from model.person_antecedent import person_antecedent
 from model.person_habit import personal_habit
 from model.family_antecedent import family_antecedent
 
-from router.paciente.home import get_current_user
+from router.logout import get_current_user
 from router.roles.user_roles import verify_rol
 
 from schema.antecedent_schema import AntecedentSchema, PersonalHobbieSchema, FamilyAntecedentSchema, Antecedent
@@ -25,10 +25,10 @@ from typing import List
 from datetime import datetime
 
 
-routeantec = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+routeantec = APIRouter(tags=["Antecedents"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @routeantec.get("/api/myantecedents/")
-async def user_antecedent(user_id: int):
+async def user_antecedent(user_id: int,  current_user: str = Depends(get_current_user)):
     ver_user = await verify_rol(user_id)
     if ver_user["role_id"] == 3:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
@@ -93,7 +93,7 @@ async def user_antecedent(user_id: int):
     return list_antecedent
 
 @routeantec.get("/api/newantecedent/")
-async def new_antecedent(user_id: int):
+async def new_antecedent(user_id: int,  current_user: str = Depends(get_current_user)):
     ver_user = await verify_rol(user_id)
     if ver_user["role_id"] == 3:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
@@ -106,7 +106,7 @@ async def new_antecedent(user_id: int):
 
 
 @routeantec.post("/api/createantec/", response_model=Antecedent)
-async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_per_habit: List[PersonalHobbieSchema], data_fam_antec: FamilyAntecedentSchema):
+async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_per_habit: List[PersonalHobbieSchema], data_fam_antec: FamilyAntecedentSchema,  current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         new_data_per_antec = data_per_antec.dict()
         new_data_fam_antec = data_fam_antec.dict()

@@ -22,8 +22,10 @@ from model.inf_medic import inf_medic
 from model.blacklist_token import blacklist_token
 
 from router.admin.list_user import luser
-from router.paciente.home import userhome
 from router.admin.users_verify import uverify
+from router.paciente.home import patienthome
+from router.doctor.home import doctorhome
+from router.admin.home import adminhome
 from router.doctor.doctor import routedoc
 from router.paciente.user import user
 from router.paciente.validate_image import imageuser
@@ -47,11 +49,14 @@ app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
 
 app.include_router(luser)
 app.include_router(uverify)
+app.include_router(patienthome)
+app.include_router(doctorhome)
+app.include_router(adminhome)
 app.include_router(routerol)
 app.include_router(routeuserrol)
 
 app.include_router(routeantec)
-app.include_router(userhome)
+
 app.include_router(user)
 app.include_router(imageuser)
 app.include_router(email)

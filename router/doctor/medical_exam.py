@@ -11,7 +11,7 @@ from model.user import users
 from model.medical_exam import medical_exam
 from model.images.files_medical_exam_doc import files_medical_exam_doc
 
-from router.paciente.home import get_current_user
+from router.logout import get_current_user
 from router.roles.user_roles import verify_rol
 
 from schema.medic_exam import MedicExamSchema
@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 exam = APIRouter(tags=["Medical Exam"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @exam.get("/doctor/newmedicalex/", tags=["Video Call Doctor"])
-async def new_medic_exam(user_id: int):
+async def new_medic_exam(user_id: int, current_user: str = Depends(get_current_user)):
     ver_user = await verify_rol(user_id)
     if ver_user["role_id"] == 2:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
@@ -137,7 +137,7 @@ async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
     return created_user  
 
 @exam.post("/doctor/createmedexam/{user_id}", tags=["Video Call Doctor"])
-async def create_medic_exam(user_id: int, request: Request, desc_exam: str = Form(...),  file_docu: UploadFile = File(None), image: UploadFile = File(None)):
+async def create_medic_exam(user_id: int, request: Request, desc_exam: str = Form(...),  file_docu: UploadFile = File(None), image: UploadFile = File(None),  current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         insert_exam = conn.execute(medical_exam.insert().values(user_id=user_id, description_exam= desc_exam))
         conn.commit()

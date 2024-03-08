@@ -21,6 +21,7 @@ def is_token_revoked(token: str):
     with engine.connect() as conn:
         query =  conn.execute(blacklist_token.select()
                               .where(blacklist_token.c.token==token)).first()
+        print(query)
         if query is not None:
             return query
 

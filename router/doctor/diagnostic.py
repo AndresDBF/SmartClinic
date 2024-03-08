@@ -10,7 +10,7 @@ from model.user import users
 from model.diagnostic import diagnostic
 from model.patient_consult import patient_consult
 
-from router.paciente.home import get_current_user
+from router.logout import get_current_user
 from router.roles.user_roles import verify_rol
 
 from schema.diagnostic import DiagnosticSchema

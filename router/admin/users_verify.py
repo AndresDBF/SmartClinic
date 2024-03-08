@@ -3,7 +3,6 @@ from fastapi import APIRouter, Response, status, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from config.db import engine
 
@@ -11,23 +10,18 @@ from model.user import users
 from model.usercontact import usercontact
 from model.images.user_image import user_image
 
-from model.images.user_image_profile import user_image_profile
-
-from router.paciente.home import get_current_user
-from router.paciente.user import SECRET_KEY, ALGORITHM
+from router.logout import get_current_user
 
 
 from sqlalchemy import insert, select, func
-from sqlalchemy.exc import IntegrityError
 
 from starlette.requests import Request
 
 from os import getcwd, remove
 
-from jose import jwt, JWTError
 
 
-security = HTTPBearer()
+
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
     
@@ -38,21 +32,8 @@ img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img',
 
 uverify.mount("/img", StaticFiles(directory=img_directory), name="img")
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    try:
-        token = credentials.credentials  # Obtiene el token de las credenciales
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales de Autenticacion Invalidas")
-        # Puedes hacer alguna lógica adicional para verificar el usuario si es necesario
-        return email
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
-
-
 @uverify.get("/admin/veri/user")
-async def list_user_verify(request: Request):
+async def list_user_verify(request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         # Obtener usuarios sin verificar
         users_query = users.select().join(user_image, users.c.id == user_image.c.user_id).where(users.c.verify_ident == 0)
@@ -142,7 +123,7 @@ async def list_user_verify(request: Request):
 
     
 @uverify.put("/admin/veri/user/{user_id}")
-async def verify_user(user_id: int):
+async def verify_user(user_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         if user is None:
@@ -157,7 +138,7 @@ async def verify_user(user_id: int):
     return Response(content="Se ha verificado la identidad del Usuario", status_code=status.HTTP_200_OK)
         
 @uverify.delete("/admin/decli/user/{user_id}")
-async def decline_user(request: Request, user_id: int):
+async def decline_user(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         if user is None:

@@ -13,8 +13,7 @@ from model.images.user_image_profile import user_image_profile
 
 from model.images.user_image_profile import user_image_profile
 
-from router.paciente.home import get_current_user
-from router.paciente.user import SECRET_KEY, ALGORITHM
+from router.logout import get_current_user
 
 
 from sqlalchemy import insert, select, func, or_, and_
@@ -39,7 +38,7 @@ img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img',
 luser.mount("/img", StaticFiles(directory=img_directory), name="img")
 
 @luser.get("/admin/listusers")
-async def list_users(request: Request):
+async def list_users(request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         # Obtener usuarios sin verificar
         users_query = conn.execute(users.select().join(user_image_profile, users.c.id == user_image_profile.c.user_id).
@@ -114,7 +113,7 @@ async def list_users(request: Request):
 
 
 @luser.post("/admin/searchuser")
-async def search_user(name: str, request: Request):
+async def search_user(name: str, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         name_parts = name.split()
         

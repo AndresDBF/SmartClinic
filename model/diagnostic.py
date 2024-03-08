@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Table, ForeignKey
-from sqlalchemy.sql.sqltypes import String, Integer, Boolean, DateTime, Numeric
+from sqlalchemy.sql.sqltypes import String, Integer, Boolean, DateTime, Numeric, TIMESTAMP
+from sqlalchemy.sql.functions import func
 from config.db import engine, meta_data
 
 diagnostic = Table("diagnostic",meta_data,
@@ -7,6 +8,8 @@ diagnostic = Table("diagnostic",meta_data,
                    Column("patconsult_id", Integer, ForeignKey("patient_consult.id")),
                    Column("probl_patient", String(191), nullable=False),
                    Column("atent_id", String(20), nullable=False),
-                   Column("doctor_name", String(191), nullable=False))
+                   Column("doctor_name", String(191), nullable=False),
+                   Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+)
 
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)

@@ -9,4 +9,4 @@ patient_consult = Table("patient_consult",meta_data,
                    Column("consult_date", DateTime, nullable=False)
 )
 
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)

@@ -23,7 +23,7 @@ from model.diagnostic import diagnostic
 from sqlalchemy import select, insert, func
 from sqlalchemy.sql import select
 
-from router.paciente.home import get_current_user
+from router.logout import get_current_user
 from router.roles.user_roles import verify_rol
 
 routeim = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
@@ -31,7 +31,7 @@ routeim = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_F
 
 #optimizar las consultas de este endpoint
 @routeim.get("/doctor/videocall/user/{user_id}")
-async def get_info_user(user_id: int, request: Request):
+async def get_info_user(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user =  conn.execute(users.select().where(users.c.id == user_id)).first()
         if user is None:
@@ -101,7 +101,7 @@ async def get_info_user(user_id: int, request: Request):
 
 #optimizar las consultas de este endpoint      
 @routeim.get("/doctor/infomedic/")
-async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper: int, id_atent= str):
+async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper: int, id_atent= str, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         per_ant = conn.execute(
             select(
@@ -167,7 +167,7 @@ async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper:
 
 #modificar la optimizacion de este endpoint
 @routeim.post("/doctor/infomedic/create/")
-async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, idatent: str, infcase: str = Form(...), disease_act: str = Form(...), impre_diag: str = Form(...), medication_ind: str = Form(...)):
+async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, idatent: str, infcase: str = Form(...), disease_act: str = Form(...), impre_diag: str = Form(...), medication_ind: str = Form(...), current_user: str = Depends(get_current_user)):
     print(idatent)
     with engine.connect() as conn:
         conn.execute(inf_medic.insert().values(doc_id=docid,
@@ -186,7 +186,7 @@ async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, i
     }, status_code=status.HTTP_201_CREATED)
         
 @routeim.delete("/doctor/infmedic/delete/{diag_id}")
-async def delete_diagnostic(diag_id: int):
+async def delete_diagnostic(diag_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         conn.execute(diagnostic.delete().where(diagnostic.c.id == diag_id))
         conn.commit()

@@ -1,6 +1,7 @@
 import smtplib
 import poplib
 import hashlib
+import setuptools
 import os
 from fastapi import APIRouter, Response, status, HTTPException, Depends, Path, Form, UploadFile, File, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, HTTPBearer, HTTPAuthorizationCredentials
@@ -40,7 +41,7 @@ from fastapi.templating import Jinja2Templates
 
 from typing import List, Optional
 
-from router.logout import SECRET_KEY, ALGORITHM
+from router.logout import SECRET_KEY, ALGORITHM, get_current_user
 
 security = HTTPBearer()
 
@@ -66,14 +67,8 @@ pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 @user.get("/")
 async def root():
-    with engine.connect() as conn:
-        new_user = {}
-        new_user["name"] = "Andres"
-        new_user["last_name"] = "becerra"
-        print(new_user)
-        conn.execute(users.update().where(users.c.id == 26).values(new_user))
-        conn.commit()
-    return "pruebas"
+    
+    return setuptools.__version__
 
 @user.get("/api/user/test", response_model=List[UserSchema])
 async def get_users():
@@ -201,7 +196,7 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
 #--------------------------------------------------------------------------------------------------------------------------------------------
                     if pwd_context.verify(password, hashed_password):    
                         user = authenticate_user(email, password)
-                        access_token_expires = timedelta(minutes=30)
+                        access_token_expires = timedelta(minutes=240)
                         access_token_jwt = create_token({"sub": user.email}, access_token_expires)
                     created_user = {
                         "user":{
@@ -253,6 +248,7 @@ def create_token(data: dict, time_expire: Union[datetime,None] = None):
         expires = datetime.utcnow() +  timedelta(minutes=15)#datetime.utcnow() trae la hora de ese instante
     else:
         expires = datetime.utcnow() + time_expire
+    print(expires)
     data_copy.update({"exp": expires})
     token_jwt = jwt.encode(data_copy, key=SECRET_KEY, algorithm=ALGORITHM)
 
@@ -327,7 +323,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
 
 @user.get("/api/user/show/{user_id}")
-async def edit_user(user_id: int, request: Request):
+async def edit_user(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id == user_id)).first()
         user_contact = conn.execute(usercontact.select().where(usercontact.c.user_id == user_id)).first()
@@ -402,7 +398,7 @@ async def create_user(
     country: str = Form(None),
     state: str = Form(None),
     direction: str = Form(None),
-    image: UploadFile = File(None)):
+    image: UploadFile = File(None),  current_user: str = Depends(get_current_user)):
     
     update_user = {}
     update_contact_user = {}

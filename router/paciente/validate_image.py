@@ -1,6 +1,6 @@
 import hashlib
 import os
-from fastapi import APIRouter, File, UploadFile, HTTPException, status, Request
+from fastapi import APIRouter, File, UploadFile, HTTPException, status, Request, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -8,6 +8,8 @@ from config.db import engine
 
 from model.images.user_image import user_image
 from model.roles.user_roles import user_roles
+
+from router.logout import get_current_user
 
 from sqlalchemy import select, insert
 from sqlalchemy.exc import IntegrityError
@@ -25,7 +27,7 @@ img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img',
 imageuser.mount("/img", StaticFiles(directory=img_directory), name="img")
 
 @imageuser.post("/api/imageupload/{user_id}", status_code=status.HTTP_200_OK)
-async def upload_image(user_id: int, request: Request, image_ident: UploadFile = File(...), image_self: UploadFile = File(...)):
+async def upload_image(user_id: int, request: Request, image_ident: UploadFile = File(...), image_self: UploadFile = File(...),  current_user: str = Depends(get_current_user)):
     try:
         if image_ident.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo de identidad debe ser una imagen JPEG, JPG o PNG")
@@ -83,85 +85,78 @@ async def upload_image(user_id: int, request: Request, image_ident: UploadFile =
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image already exists")
 
 
-'''    
-    import os
-from fastapi import APIRouter, Request, HTTPException, status
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select
-
-from config.db import engine
-from model.user import users
-from model.images.user_image_profile import user_image_profile
-
-# Obtener la ruta absoluta del directorio raíz del proyecto
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-
-userhome = APIRouter(tags=["userhome"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
-
-# Definir la ruta absoluta de la carpeta de imágenes estáticas
-img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img', 'profile'))
-
-# Montar la carpeta de imágenes estáticas
-userhome.mount("/img", StaticFiles(directory=img_directory), name="img")
-
-@userhome.get("/home/{userid}")
-async def user_home(userid: int, request: Request):
-    with engine.connect() as conn:
-        # Obtener el usuario
-        user = conn.execute(users.select().where(users.c.id == userid)).first()
-        if user is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
-
-        # Obtener la imagen del perfil del usuario
-        image_row = conn.execute(user_image_profile.select().where(user_image_profile.c.user_id == userid)).first()
-
-        file_path = f"./img/profile/{image_row.image_profile}"
-    
-        import os 
-        if not os.path.exists(file_path):
-            return {"error": "El archivo no existe"}
-        
-        image = FileResponse(file_path)
-        
-        base_url = str(request.base_url)
-        image_url = f"{base_url.rstrip('/')}/img/profile/{image_row.image_profile}"
-        print(image_url)
-        
-        return {"id": userid, "image": image_url} """
-""" 
-img = APIRouter(tags=['user_image'], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
-
-@img.post("/api/imageupload", status_code=status.HTTP_201_CREATED)
-async def upload_image(files: List[UploadFile] = File(...)):
-    try:
-        with engine.connect() as conn:
-            for file in files:
-                content = await file.read()
-                try:
-                    # Insert image info into user_image table
-                    query = insert(user_image).values(image_ident=file.filename, image_self=content)
-                    await session.execute(query)
-                    await session.commit()
-                except IntegrityError:
-                    # Handle if the image already exists or other integrity errors
-                    await session.rollback()
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image already exists")
-
-        return {"saved": True}
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-    
-'''
-
-
 
 #--------------------NOTA ------------------------------------
 #DEJAMOS ESTE CODIGO COMENTADO EN CASO DE QUE NECESITE SER USADO 
 
 
+""" 
 
 
 
+import hashlib
+import imghdr
+from pyheif import read
+from PIL import Image
+from fastapi import HTTPException, status
+from sqlalchemy import insert
 
+# Función para convertir el archivo HEIC a PNG
+def convert_heic_to_png(file_content):
+    heif_file = read(file_content)
+    image = Image.frombytes(
+        heif_file.mode, 
+        heif_file.size, 
+        heif_file.data,
+        "raw",
+        heif_file.mode,
+        heif_file.stride,
+    )
+    return image
+
+# Verificar si el archivo es una imagen válida
+def is_valid_image(content_type):
+    return content_type in ["image/jpeg", "image/jpg", "image/png", "image/heic"]
+
+# Lógica para manejar el envío de imágenes
+if image is not None:
+    if image.filename != '':
+        try:
+            content_type = image.content_type
+            if not is_valid_image(content_type):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="El archivo debe ser una imagen JPEG, JPG, PNG o HEIC"
+                )
+            
+            content_image = await image.read()
+            if content_type == "image/heic":
+                image = convert_heic_to_png(content_image)
+                file_extension = "png"
+            else:
+                image_extension = imghdr.what(None, content_image)
+                file_extension = image_extension if image_extension else "png"
+            
+            image_hash = hashlib.sha256(content_image).hexdigest()
+            image_path = f"img/profile/{image_hash}.{file_extension}"
+            
+            with open(image_path, "wb") as file:
+                file.write(content_image)
+            
+            # Insertar la información en la base de datos
+            await database.execute(
+                insert(user_image_profile).values(
+                    user_id=userid, 
+                    image_profile_original=image.filename, 
+                    image_profile=image_hash
+                )
+            )
+            
+            file_path_prof = f"./{image_path}"
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al procesar la imagen",
+            ) from e
+ """

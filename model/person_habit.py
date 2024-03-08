@@ -11,4 +11,4 @@ personal_habit = Table("personal habit", meta_data,
                       Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
 )
 
-meta_data.create_all(engine)
+meta_data.create_all(engine, checkfirst=True)
