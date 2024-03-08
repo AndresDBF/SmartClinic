@@ -14,7 +14,7 @@ inf_medic = Table("inf_medic",meta_data,
                    Column("disease", String(191), nullable=False),
                    Column("imp_diag", String(191), nullable=False),
                    Column("medication", String(191), nullable=False),
-                   Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+                   Column("created_at", TIMESTAMP, nullable=True)
 )
 
 

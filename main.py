@@ -14,6 +14,8 @@ from model.diagnostic import diagnostic
 from model.person_antecedent import person_antecedent 
 from model.person_habit import personal_habit
 from model.family_antecedent import family_antecedent
+from model.blacklist_token_videocall import blacklist_token_videocall
+from model.agora_rooms import agora_rooms
 from model.medical_exam import medical_exam
 from model.images.files_medical_exam_doc import files_medical_exam_doc
 from model.images.files_medical_exam_pat import files_medical_exam_pat
@@ -25,7 +27,8 @@ from router.admin.list_user import luser
 from router.admin.users_verify import uverify
 from router.paciente.home import patienthome
 from router.doctor.home import doctorhome
-from router.admin.home import adminhome
+#from router.admin.home import adminhome
+#from router.home import patienthome
 from router.doctor.doctor import routedoc
 from router.paciente.user import user
 from router.paciente.validate_image import imageuser
@@ -39,6 +42,7 @@ from router.doctor.medical_exam import exam
 from router.doctor.inf_medic import routeim
 from router.paciente.antecedent import routeantec
 from router.logout import routelogout
+from router.agora.videocall import routeagora
 #from router.test_image import router
 
 app = FastAPI()
@@ -47,26 +51,35 @@ app.mount("/img/profile", StaticFiles(directory="img/profile"), name="profile_im
 app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
 
 
-app.include_router(luser)
-app.include_router(uverify)
-app.include_router(patienthome)
-app.include_router(doctorhome)
-app.include_router(adminhome)
-app.include_router(routerol)
-app.include_router(routeuserrol)
 
-app.include_router(routeantec)
+
+#usuarios
 
 app.include_router(user)
 app.include_router(imageuser)
+app.include_router(routeantec)
+app.include_router(patienthome)
 app.include_router(email)
 app.include_router(userexam)
-app.include_router(routedoc)
 app.include_router(routetipco)
-app.include_router(routediag)
+
+
+#admin
+app.include_router(uverify)
+app.include_router(routerol)
+app.include_router(routeuserrol)
+
+#doctor
+
+app.include_router(doctorhome)
 app.include_router(exam)
+app.include_router(routedoc)
 app.include_router(routeim)
+app.include_router(routediag)
+app.include_router(routeagora)
+
+#cierre de sesion
 app.include_router(routelogout)
-#app.include_router(router)
+
 
 

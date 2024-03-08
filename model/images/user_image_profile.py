@@ -8,7 +8,7 @@ user_image_profile = Table("user_image_profile", meta_data,
                     Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
                     Column("image_profile_original", String(191), nullable=False),
                     Column("image_profile", String(191), nullable=False),
-                    Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+                    Column("created_at", TIMESTAMP, nullable=True, default=func.now())
 )
                    
 

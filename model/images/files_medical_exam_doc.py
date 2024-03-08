@@ -9,7 +9,7 @@ files_medical_exam_doc = Table("files_medical_exam_doc", meta_data,
                     Column("image_exam_original", String(191), nullable=True),
                     Column("pdf_exam", String(191), nullable=True),
                     Column("image_exam", String(191), nullable=True),
-                    Column("created_at", TIMESTAMP, nullable=False)
+                    Column("created_at", TIMESTAMP, nullable=True)
 )
                    
 meta_data.create_all(engine)

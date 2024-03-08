@@ -8,7 +8,7 @@ personal_habit = Table("personal habit", meta_data,
                       Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
                       Column("consumed_value", Boolean, nullable=False),
                       Column("consumed_text", String(250), nullable=True),
-                      Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+                      Column("created_at", TIMESTAMP, nullable=True)
 )
 
 meta_data.create_all(engine, checkfirst=True)

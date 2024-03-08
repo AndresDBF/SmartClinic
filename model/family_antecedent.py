@@ -11,7 +11,7 @@ family_antecedent = Table("family_antecedent", meta_data,
                           Column("disease_mother_text", String(250), nullable=True),
                           Column("disease_father_value", String(250), nullable=False),
                           Column("disease_father_text", String(250), nullable=True),
-                          Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+                          Column("created_at", TIMESTAMP, nullable=True)
 )
 
 meta_data.create_all(engine, checkfirst=True)

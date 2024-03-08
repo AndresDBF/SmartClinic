@@ -18,7 +18,7 @@ users = Table("users", meta_data,
               Column("identification", Numeric, nullable=False),
               Column("disabled", Boolean, nullable=False, default=False),
               Column("verify_ident", Boolean, nullable=False, default=False),
-              Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+              Column("created_at", TIMESTAMP, nullable=True, default=func.now())
 )
 
 # Crear todas las tablas en la base de datos, verificando primero si ya existen

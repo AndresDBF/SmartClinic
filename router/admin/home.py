@@ -1,4 +1,4 @@
-import os
+""" import os
 from fastapi import APIRouter, Request, HTTPException, status, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -54,3 +54,4 @@ async def user_home(userid: int, request: Request, current_user: str = Depends(g
             
             return {"id": userid, "image": image_url}
         return {"id": userid, "image": None}
+ """

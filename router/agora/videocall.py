@@ -1,13 +1,57 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from agora.videocall import RtcTokenBuilder, RtmTokenBuilder, RtcRole, RtmRole
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.post("/handle_call")
+def handle_call(request_data: dict):
+
+    app_id = "your_app_id"
+    app_certificate = "your_app_certificate"
+    channel_name = request_data["channel_name"]
+    user_id = request_data["user_id"]
+    role = RtcRole.PUBLISHER  
+    
+    token = RtcTokenBuilder.buildTokenWithUid(app_id, app_certificate, channel_name, user_id, role)
+    
+    return {"token": token}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+""" 
+
+from fastapi import APIRouter, HTTPException, Depends, Header, status
 from datetime import datetime, timedelta
 
 from pydantic import BaseModel
 from typing import Optional
 from jose import jwt
-app = FastAPI()
+
+   
+routeagora = APIRouter(tags=["Video Call Agora"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+
 
 # Secret key for encoding and decoding JWT tokens
-SECRET_KEY = "your_secret_key"
+SECRET_KEY = "04e7c0ad2b92e73b001b6318f3791e7338b03c362d59185463af639565c84e60"
 ALGORITHM = "HS256"
 
 # Mock database users and rooms
@@ -53,25 +97,23 @@ def verify_jwt_token(token: str):
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# Endpoint for user login
-@app.post("/login", response_model=Token)
+@routeagora.post("/login", response_model=Token)
 async def login(user: User):
     authenticated_user = authenticate_user(user.email, user.password)
     token = create_jwt_token(authenticated_user["id"], authenticated_user["role"])
     return {"access_token": token, "token_type": "bearer"}
 
-# Endpoint to create a room and generate a token for it
-@app.post("/create_room", response_model=Token)
+@routeagora.post("/create_room", response_model=Token)
 async def create_room(user_id: int = Header(..., description="User ID"), role: str = Header(..., description="User Role")):
-    if role != "doctor":
+    if role != "patient":
         raise HTTPException(status_code=403, detail="Only doctors can create rooms")
     room_id = f"room{len(rooms_db) + 1}"
     rooms_db[room_id] = {"id": room_id, "participants": []}
     token = create_jwt_token(user_id, role, room_id)
     return {"access_token": token, "token_type": "bearer"}
 
-# Endpoint to join a room
-@app.post("/join_room/{room_id}")
+
+@routeagora.post("/join_room/{room_id}")
 async def join_room(room_id: str, token: str = Header(..., description="JWT Token")):
     payload = verify_jwt_token(token)
     user_id = payload["user_id"]
@@ -87,3 +129,4 @@ async def join_room(room_id: str, token: str = Header(..., description="JWT Toke
     else:
         raise HTTPException(status_code=403, detail="Unauthorized")
     return {"message": f"User {user_id} joined room {room_id}"}
+ """

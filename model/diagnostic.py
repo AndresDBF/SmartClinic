@@ -9,7 +9,7 @@ diagnostic = Table("diagnostic",meta_data,
                    Column("probl_patient", String(191), nullable=False),
                    Column("atent_id", String(20), nullable=False),
                    Column("doctor_name", String(191), nullable=False),
-                   Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+                   Column("created_at", TIMESTAMP, nullable=True)
 )
 
 meta_data.create_all(engine, checkfirst=True)

@@ -7,7 +7,7 @@ experience_doctor = Table("experience_doctor", meta_data,
                     Column("id", Integer, primary_key=True),
                     Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
                     Column("name_exper", String(191), nullable=False),
-                    Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+                    Column("created_at", TIMESTAMP, nullable=True)
 )
                    
 meta_data.create_all(engine, checkfirst=True)

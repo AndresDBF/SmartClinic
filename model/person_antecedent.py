@@ -27,7 +27,7 @@ person_antecedent = Table(
     Column("disease_six_mounths_text", String(250), nullable=True),
     Column("last_visit_medic", String(250), nullable=True),
     Column("visit_especiality", String(250), nullable=True),
-    Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+    Column("created_at", TIMESTAMP, nullable=True)
 )
 
 # Crear la tabla solo si no existe

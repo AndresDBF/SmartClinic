@@ -7,7 +7,7 @@ medical_exam = Table("medical_exam", meta_data,
                      Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
                      Column("description_exam", String(300), nullable=False),
                      Column("done", Boolean, nullable=False, default=False),
-                     Column("created_at", TIMESTAMP, nullable=False)
+                     Column("created_at", TIMESTAMP, nullable=True)
 )
 
 meta_data.create_all(engine, checkfirst=True)

@@ -10,7 +10,7 @@ user_image = Table("user_image", meta_data,
                     Column("image_self_original", String(191), nullable=False),
                     Column("image_ident", String(191), nullable=False),
                     Column("image_self", String(191), nullable=False),
-                    Column("created_at", TIMESTAMP, nullable=False, server_default=func.now())
+                    Column("created_at", TIMESTAMP, nullable=True)
 )
 
 meta_data.create_all(engine, checkfirst=True)
