@@ -110,6 +110,7 @@ def verify_iden(tipid: str, gender: str):
 async def create_user(tiprol:str, request: Request,username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(None)):
     try:
         role = verify_tiprol(tiprol)
+        print(role)
         with engine.connect() as conn:
             name = name.title()
             last_name = last_name.title()
@@ -120,6 +121,7 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
             new_user = {"id": last_id,"username": username,"email": email,"verify_email": verify_email,"password": password,"name": name,"last_name": last_name,"gender": gender,"birthdate": birthdate,"tipid": tipid,"identification": identification,"disabled": False, "verify_ident": False}
             new_contact_user = {"id": last_contact_id,"user_id": 1,"phone": phone,"country": country,"state": state,"direction": direction}
             query_roles = conn.execute(roles.select().where(roles.c.role_name == role)).first()
+            print(query_roles)
             if verify_username_email(username, email):
                 if verify_iden(tipid, gender):
                     if last_id is not None:
@@ -130,17 +132,19 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
                         id_contact = 1
                     hashed_password = pwd_context.hash(password)
                     new_user["password"] = hashed_password
-                    if role == "patient":
+                    if role == "Patient" or role == "Doctor":
+                        print("entra en el primer if")
                         stmt = insert(users).values(username=new_user["username"],email=new_user["email"],password=new_user["password"],name=new_user["name"],last_name=new_user["last_name"],gender=new_user["gender"],birthdate=new_user["birthdate"],tipid=new_user["tipid"],identification=new_user["identification"],disabled=new_user["disabled"], verify_ident=new_user["verify_ident"])
                         result = conn.execute(stmt)
                         userid = result.lastrowid
                         conn.commit()
-                    if role == "admin":
+                    if role == "Admin":
+                        print("entra en el segundo if ")
                         stmt = insert(users).values(username=new_user["username"],email=new_user["email"],password=new_user["password"],name=new_user["name"],last_name=new_user["last_name"],gender=new_user["gender"],birthdate=new_user["birthdate"],tipid=new_user["tipid"],identification=new_user["identification"],disabled=True, verify_ident=True)
                         result = conn.execute(stmt)
                         userid = result.lastrowid
                         conn.commit()
-                    
+                    print(userid)
                     conn.execute(user_roles.insert().values(user_id=userid, role_id=query_roles[0]))
                     conn.commit()
 

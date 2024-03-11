@@ -20,6 +20,9 @@ from model.medical_exam import medical_exam
 from model.images.files_medical_exam_doc import files_medical_exam_doc
 from model.images.files_medical_exam_pat import files_medical_exam_pat
 from model.inf_medic import inf_medic
+from model.calification import calification_doc
+from model.notification import notifications
+from model.lval import lval
 
 from model.blacklist_token import blacklist_token
 
@@ -40,9 +43,11 @@ from router.paciente.tipconsult import routetipco
 from router.doctor.diagnostic import routediag
 from router.doctor.medical_exam import exam
 from router.doctor.inf_medic import routeim
+from router.paciente.calification import qualify
 from router.paciente.antecedent import routeantec
+from router.notifications import notify
 from router.logout import routelogout
-from router.agora.videocall import routeagora
+#from router.agora.videocall import routeagora
 #from router.test_image import router
 
 app = FastAPI()
@@ -62,6 +67,7 @@ app.include_router(patienthome)
 app.include_router(email)
 app.include_router(userexam)
 app.include_router(routetipco)
+app.include_router(qualify)
 
 
 #admin
@@ -76,7 +82,10 @@ app.include_router(exam)
 app.include_router(routedoc)
 app.include_router(routeim)
 app.include_router(routediag)
-app.include_router(routeagora)
+#app.include_router(routeagora)
+
+#General
+app.include_router(notify)
 
 #cierre de sesion
 app.include_router(routelogout)

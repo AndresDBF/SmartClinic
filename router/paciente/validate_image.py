@@ -117,6 +117,11 @@ def is_valid_image(content_type):
 
 @imageuser.post("/api/imageupload/{user_id}", status_code=status.HTTP_200_OK)
 async def upload_image(user_id: int, request: Request, image_ident: UploadFile = File(..., description="imagen de identidad"), image_self: UploadFile = File(..., description="imagen de selfie"),  current_user: str = Depends(get_current_user)):
+    with engine.connect() as conn: 
+        veri_admin = conn.execute(select(user_roles.c.role_id).
+                                  select_from(user_roles).where(user_roles.c.user_id==user_id)).first()
+    if veri_admin[0] == 1:
+        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="El administrador no debe verificar su identidad")
     try:
         if image_ident.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo de identidad debe ser una imagen JPEG, JPG o PNG")

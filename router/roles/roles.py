@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, status, Form, Response, Depends
 from config.db import engine
 from model.roles.roles import roles
+from model.lval import lval
 from model.user import users
 from router.paciente.user import authenticate_user, create_token, oauth2_scheme, user
 from schema.rules.rules import Role
@@ -19,6 +20,21 @@ ALGORITHM = "HS256"
 async def get_rules():  
     with engine.connect() as conn:
         query = conn.execute(roles.select()).fetchall()
+        conn.execute(lval.insert().values([
+            {"id": 1, "tipval": "PRNOTF", "description": "Alta"},
+            {"id": 2, "tipval": "PRNOTF", "description": "Media"},
+            {"id": 3, "tipval": "PRNOTF", "description": "Baja"},
+            {"id": 4, "tipval": "CALDOC", "description": "Muy mala"},
+            {"id": 5, "tipval": "CALDOC", "description": "Mala"},
+            {"id": 6, "tipval": "CALDOC", "description": "Buena"},
+            {"id": 7, "tipval": "CALDOC", "description": "Muy Buena"},
+            {"id": 8, "tipval": "CALDOC", "description": "Excelente"},
+            {"id": 4, "tipval": "CALDOC", "description": "Regular"},
+            {"id": 5, "tipval": "CALDOC", "description": "Amigable"},
+            {"id": 6, "tipval": "CALDOC", "description": "Entretenida"},
+            {"id": 7, "tipval": "CALDOC", "description": "Fantastica"}
+        ]))
+        conn.commit()
         if not query:
             roles_data = [
                 {"role_id": 1, "role_name": "Admin"},
