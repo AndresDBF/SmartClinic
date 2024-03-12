@@ -18,7 +18,7 @@ from schema.calification import StarsDoctor, ExperienceDoctor
 from datetime import datetime
 
 from sqlalchemy import select, insert, func
-from fastapi_pagination.ext.sqlalchemy import paginate
+#from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.exc import IntegrityError
 
 qualify = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})

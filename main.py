@@ -47,7 +47,7 @@ from router.paciente.calification import qualify
 from router.paciente.antecedent import routeantec
 from router.notifications import notify
 from router.logout import routelogout
-#from router.agora.videocall import routeagora
+from router.videocall import routezoom
 #from router.test_image import router
 
 app = FastAPI()
@@ -55,11 +55,8 @@ app.title = "Documentación SmartClinic"
 app.mount("/img/profile", StaticFiles(directory="img/profile"), name="profile_images")
 app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
 
-
-
-
 #usuarios
-
+app.include_router(routezoom)
 app.include_router(user)
 app.include_router(imageuser)
 app.include_router(routeantec)
@@ -76,12 +73,12 @@ app.include_router(routerol)
 app.include_router(routeuserrol)
 
 #doctor
-
 app.include_router(doctorhome)
 app.include_router(exam)
 app.include_router(routedoc)
 app.include_router(routeim)
 app.include_router(routediag)
+
 #app.include_router(routeagora)
 
 #General

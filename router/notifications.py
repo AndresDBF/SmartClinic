@@ -11,7 +11,7 @@ from router.logout import get_current_user
 from datetime import datetime
 
 from sqlalchemy import select, insert, func
-from fastapi_pagination.ext.sqlalchemy import paginate
+#from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.exc import IntegrityError
 
 notify = APIRouter(tags=["Notifications"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})

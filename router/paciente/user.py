@@ -446,6 +446,8 @@ async def create_user(
     with engine.connect() as conn:
         #verificando email y username
         query_existing_user = conn.execute(users.select().where(users.c.username == username).where(users.c.id != user_id)).first()
+        print(query_existing_user)
+        print(user_id)
         query_existing_email = conn.execute(users.select().where(users.c.email == email).where(users.c.id != user_id)).first()
         if query_existing_user is not None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {username} ya existe")
@@ -462,7 +464,9 @@ async def create_user(
                     with open(f"img/profile/{pr_photo}.png", "wb") as file_ident:
                         file_ident.write(content_profile_image)
                     with engine.connect() as conn:
-                        query = user_image_profile.insert().values(user_id=query_existing_user.id, image_profile_original=image.filename, image_profile=pr_photo)
+                        query = user_image_profile.insert().values(user_id=user_id,
+                                                                   image_profile_original=image.filename, 
+                                                                   image_profile=pr_photo)
                         conn.execute(query)
                         conn.commit()     
                     file_path_prof = f"./img/profile/{pr_photo}"
