@@ -56,6 +56,7 @@ app.mount("/img/profile", StaticFiles(directory="img/profile"), name="profile_im
 app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
 
 #usuarios
+
 app.include_router(routezoom)
 app.include_router(user)
 app.include_router(imageuser)
