@@ -15,8 +15,8 @@ from sqlalchemy.exc import IntegrityError
 
 routetipco = APIRouter(tags=["Tip Consult"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-@routetipco.get("/api/user/tcm/{user_id}")
-async def get_tip_consult(userid: int, current_user: str = Depends(get_current_user)):
+@routetipco.get("/api/user/tcm/")
+async def get_tip_consult(user_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         ext_tip_consult = conn.execute(tip_consult.select()).fetchall()
         if ext_tip_consult:
@@ -24,7 +24,7 @@ async def get_tip_consult(userid: int, current_user: str = Depends(get_current_u
                 {
                     "id": row[0],
                     "tipconsult": row[1],
-                    "user_id": userid
+                    "user_id": user_id
                 }
                 for row in ext_tip_consult
             ]
@@ -43,7 +43,7 @@ async def get_tip_consult(userid: int, current_user: str = Depends(get_current_u
                 {
                     "id": row[0],
                     "tipconsult": row[1],
-                    "user_id": userid
+                    "user_id": user_id
                 }
                 for row in query
         ]
@@ -61,7 +61,7 @@ async def create_consult(userid: int, consultid: int, current_user: str = Depend
         conn.commit()
         last_query = conn.execute(patient_consult.select().where(patient_consult.c.id==id_pc)).first()
     return {
-        "id": last_query[0],
+        "consult_id": last_query[0],
         "user_id": userid,
         "tipconsult_id": consultid,
         "consult_data": last_query[3]
@@ -73,6 +73,3 @@ async def delete_pat_consult(consult_id: int, current_user: str = Depends(get_cu
         query = conn.execute(patient_consult.delete().where(patient_consult.c.id == consult_id))       
         conn.commit()
     return Response(content="Se ha cancelado la consulta", status_code=status.HTTP_200_OK)
-
-    
-    

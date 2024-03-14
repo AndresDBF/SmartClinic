@@ -106,7 +106,7 @@ def verify_iden(tipid: str, gender: str):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"El Genero proporcionado '{gender}' no es correcto")
     return True
     
-@user.post("/api/user/register",  status_code=status.HTTP_201_CREATED)
+@user.post("/api/user/register/",  status_code=status.HTTP_201_CREATED)
 async def create_user(tiprol:str, request: Request,username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(None)):
     try:
         role = verify_tiprol(tiprol)
@@ -340,8 +340,9 @@ async def edit_user(user_id: int, request: Request, current_user: str = Depends(
                                     user_image_profile.c.image_profile).select_from(user_image_profile).
                                join(users, user_image_profile.c.user_id==users.c.id).
                                where(users.c.id == user_id)).first()
-   
+       
     if profile is not None:
+        print(profile)
         file_path_file = f"./img/profile/{profile.image_profile}.png"
         if not os.path.exists(file_path_file):
             return {"error": "La imagen de perfil no existe"}
@@ -446,8 +447,7 @@ async def create_user(
     with engine.connect() as conn:
         #verificando email y username
         query_existing_user = conn.execute(users.select().where(users.c.username == username).where(users.c.id != user_id)).first()
-        print(query_existing_user)
-        print(user_id)
+      
         query_existing_email = conn.execute(users.select().where(users.c.email == email).where(users.c.id != user_id)).first()
         if query_existing_user is not None:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El usuario {username} ya existe")
@@ -455,6 +455,7 @@ async def create_user(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {email} ya se encuentra en uso")
         #insertando data 
         if image is not None:
+          
             if image.filename != '':
                 try:
                     if image.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
@@ -463,22 +464,19 @@ async def create_user(
                     pr_photo = hashlib.sha256(content_profile_image).hexdigest()
                     with open(f"img/profile/{pr_photo}.png", "wb") as file_ident:
                         file_ident.write(content_profile_image)
-                    with engine.connect() as conn:
-                        query = user_image_profile.insert().values(user_id=user_id,
-                                                                   image_profile_original=image.filename, 
-                                                                   image_profile=pr_photo)
-                        conn.execute(query)
-                        conn.commit()     
+                   
                     file_path_prof = f"./img/profile/{pr_photo}"
                     image_ident = FileResponse(file_path_prof)  
                     base_url = str(request.base_url)
-                    image_url = f"{base_url.rstrip('/')}/img/profile/{pr_photo}.png"    
-                    conn.execute = (user_image_profile.update().where(user_image_profile.c.id==user_id).values(image_profile_original=image.filename, image_profile=pr_photo))
-                    conn.commit
+                    image_url = f"{base_url.rstrip('/')}/img/profile/{pr_photo}.png" 
+                    
+                    conn.execute(user_image_profile.update().
+                                    where(user_image_profile.c.user_id==user_id).
+                                    values(image_profile_original=image.filename, image_profile=pr_photo))
+                    conn.commit()
                 except IntegrityError:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
-        print(update_user)
-        print(update_contact_user)
+        
         try:
             if update_user:
                 conn.execute(users.update().where(users.c.id == user_id).values(update_user))
