@@ -1,78 +1,100 @@
 import os
 import uuid
 import requests
-from requests import post
-from fastapi import APIRouter, HTTPException, status, Request, Form
+
+from fastapi import APIRouter, HTTPException, status, Request, Form, Depends, Response
+from fastapi.responses import JSONResponse
 from config.db import engine
+
 from model.user import users
 from model.agora_rooms import agora_rooms
+from model.tip_consult import tip_consult
+from model.patient_consult import patient_consult
+
 from router.logout import get_current_user
+from agora.RtcTokenBuilder2 import RtcTokenBuilder
+from agora.RtcTokenBuilder2 import Role_Publisher, Role_Subscriber
+
+from sqlalchemy import select, insert, func
+from sqlalchemy.exc import IntegrityError
+
 from schema import agora
+
 from dotenv import load_dotenv
-from agora_token_builder.AccessToken import AccessToken  
-from agora_token_builder.RtcTokenBuilder import RtcTokenBuilder, Role_Publisher, Role_Subscriber
+#from agora_token_builder.AccessToken import AccessToken  
+#from agora_token_builder.RtcTokenBuilder import RtcTokenBuilder, Role_Publisher, Role_Subscriber
 from datetime import datetime, timedelta
+from requests import post
 
 load_dotenv()
 
 routeagora = APIRouter(tags=["agora"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-channel_name = "007eJxTYMhuv9qy+9m0E/0HOyeaZn5g/npzym9Llbvdq77E2a6IDdiiwJBmnGxgbmhslpJiYGJiYWiZaGlhYpyWkpiUbJJsYGpiojb3S2pDICOD7D4uRkYGCATx2RkKikpTkxINGRgAqNgi1w=="
-@routeagora.post("/generate-token/")
-async def generate_token():
+async def generate_token(channel_name, uid):
     try:
         expires = datetime.utcnow() +  timedelta(minutes=15)
-
-        token = AccessToken(os.getenv("APP_ID"), 
-                            os.getenv("APP_CERTIFICATE"),
-                            channel_name,
-                            0).build()
-        
+        token = RtcTokenBuilder.build_token_with_uid(os.getenv("APP_ID"),
+                                                     os.getenv("APP_CERTIFICATE"),channel_name,uid, Role_Publisher,3600)
  
-        return {"token": token, "channel_name": channel_name}
+        return token
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al generar el token: {str(e)}") 
 
-
-    
-@routeagora.post("/regenerate_channel_token/") 
-async def regenerate_channel_token():
-    try:
-        token_builder = RtcTokenBuilder()
-        token = token_builder.buildTokenWithUid(os.getenv("APP_ID"), os.getenv("APP_CERTIFICATE"),
-                                                channel_name, 0, Role_Publisher, 0)
-        return {"token": token, "channel_name": channel_name}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error al generar el token del canal: {str(e)}")
-
-@routeagora.post("/create-room")
-async def create_room(creator_id: str = Form(...), invite_id: str = Form(...)):
-    
+@routeagora.post("/api/user/createroom", status_code=status.HTTP_201_CREATED)
+async def create_room(patient_id: int = Form(...), current_user: str = Depends(get_current_user)):
     try:
         with engine.connect() as conn:
-            us_exist = conn.execute(users.select().where(users.c.id.in_([creator_id, invite_id]))).fetchall()
-            if len(us_exist) != 2:
-                raise HTTPException(status_code=404, detail="Al menos uno de los usuarios no existe.")
-            room_id = str(uuid.uuid4())
-            conn.execute(agora_rooms.insert().values(id=room_id, creator_id=creator_id, invitee_id=invite_id))
+            uid = conn.execute(users.select().where(users.c.id == patient_id)).first()
+            if not uid:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el paciente")
+            
+            room_id = str(uuid.uuid4()) + f"-{patient_id}"
+            conn.execute(agora_rooms.insert().values(channel_name=room_id, user_id_creator=patient_id, entrance=False))
             conn.commit()
-        return {"room_id": room_id, "creator_id": creator_id}
+        token = generate_token(room_id, patient_id)
+        return JSONResponse({
+            "created": True,
+            "token": token,
+            "room_id": room_id
+        }, status_code=status.HTTP_201_CREATED)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error al crear la sala de llamada: {str(e)}")
 
-@routeagora.get("/join-room/{room_id}")
-async def join_room(room_id: str):
+@routeagora.get("/doctor/listvideocall")
+async def list_video_call(current_user: str = Depends(get_current_user)):
+    with engine.connect() as conn: 
+        pend_vc = conn.execute(select(users.c.id, 
+                                       users.c.name, 
+                                       users.c.last_name, 
+                                       users.c.birthdate,
+                                       tip_consult.c.tipconsult,
+                                       agora_rooms.c.channel_name).select_from(agora_rooms).
+                                join(users, agora_rooms.c.user_id_creator==users.c.id).
+                                join(patient_consult, users.c.id==patient_consult.c.user_id).
+                                join(tip_consult, patient_consult.c.tipconsult==tip_consult.c.id).
+                                where(agora_rooms.c.entrance==False)).fetchall()
+    list_calls = [
+        {
+            "id": row[0],
+            "name": row[1],
+            "last_name": row[2],
+            "birthdate": row[3],
+            "tip_consult": row[4],
+            "channel_name": row[5]
+        }
+        for row in pend_vc
+    ]
+
+@routeagora.get("/doctor/joinroom/")
+async def join_room(channel_name: str, current_user: str = Depends(get_current_user)):
     try:
         with engine.connect() as conn:
-            romm_exist = conn.execute(agora_rooms.select().where(agora_rooms.c.room_id == room_id)).first() 
-        if romm_exist is None:
-            raise HTTPException(status_code=404, detail="La sala de llamada no existe.")
-        token_builder = RtcTokenBuilder()
-        token = token_builder.buildTokenWithUid(os.getenv("APP_ID"), os.getenv("APP_CERTIFICATE"),
-                                                os.getenv("CHANNEL_NAME"), romm_exist.user_id_invite, Role_Subscriber, 0)
-        return {"room_id": room_id, "token": token}
+            romm_exist = conn.execute(agora_rooms.select().where(agora_rooms.c.channel_name==channel_name)).first() 
+            if romm_exist is None:
+                raise HTTPException(status_code=404, detail="La sala de llamada no existe.")
+            doctor_id = conn.execute(select(users.c.id).select_from(users).where(users.c.email==current_user)).first()
+        token = RtcTokenBuilder.build_token_with_uid(os.getenv("APP_ID"),
+                                                     os.getenv("APP_CERTIFICATE"),doctor_id, Role_Subscriber,3600)
+        return token
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"No se pudo unir a la sala de llamada: {str(e)}")
-    
-     
-    

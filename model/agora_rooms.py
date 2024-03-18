@@ -5,9 +5,10 @@ from config.db import engine, meta_data
 
 agora_rooms = Table("agora_rooms",meta_data,
                     Column("id", Integer, nullable=False, primary_key=True),
-                    Column("romm_id", String(50), nullable=False, unique=True),
+                    Column("channel_name", String(50), nullable=False),
                     Column("user_id_creator", Integer, ForeignKey("users.id"), nullable=False),
-                    Column("user_id_invite", Integer,ForeignKey("users.id"), nullable=False),
+                    Column("user_id_invite", Integer,ForeignKey("users.id"), nullable=True),
+                    Column("entrance", Boolean, nullable=False, default=False)
 )
 
 meta_data.create_all(engine, checkfirst=True)
