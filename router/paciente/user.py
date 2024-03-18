@@ -34,6 +34,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from uuid import uuid4
+from dotenv import load_dotenv
 
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -41,9 +42,11 @@ from fastapi.templating import Jinja2Templates
 
 from typing import List, Optional
 
-from router.logout import SECRET_KEY, ALGORITHM, get_current_user
+from router.logout import get_current_user
 
 security = HTTPBearer()
+
+load_dotenv()
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
@@ -259,7 +262,7 @@ def create_token(data: dict, time_expire: Union[datetime,None] = None):
         expires = datetime.utcnow() + time_expire
     print(expires)
     data_copy.update({"exp": expires})
-    token_jwt = jwt.encode(data_copy, key=SECRET_KEY, algorithm=ALGORITHM)
+    token_jwt = jwt.encode(data_copy, key=os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
 
     return token_jwt
 
@@ -322,7 +325,7 @@ async def user_login(tiprol: str, email: str = Form(...), password: str = Form(.
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token = credentials.credentials  # Obtiene el token de las credenciales
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
         email: str = payload.get("sub")
         if email is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales de Autenticacion Invalidas")

@@ -29,7 +29,6 @@ class AntecedentSchema(BaseModel):
 
 
 class PersonalHobbieSchema(BaseModel):
-    consumed_value: bool = Field(default=False)
     consumed_text: str = Field(default="")
 
 class FamilyAntecedentSchema(BaseModel):

@@ -41,7 +41,7 @@ def getMeetingParticipants():
     headers = {'authorization': 'Bearer %s' % generateToken(),
                'content-type': 'application/json'}
     r = requests.get(
-        f'https://api.zoom.us/v2/meetings/', headers=headers)
+        f'https://api.zoom.us/v2/users/me/meetings', headers=headers)
     print("\n fetching zoom meeting participants of the live meeting ... \n")
 
     # you need zoom premium subscription to get this detail, also it might not work as i haven't checked yet(coz i don't have zoom premium account)

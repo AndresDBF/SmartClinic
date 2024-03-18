@@ -18,6 +18,7 @@ from router.roles.user_roles import verify_rol
 
 from schema.antecedent_schema import AntecedentSchema, PersonalHobbieSchema, FamilyAntecedentSchema, Antecedent
 
+
 from sqlalchemy import select, insert, func
 
 from typing import List
@@ -119,10 +120,10 @@ async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_
         conn.commit()
         
         for item in data_per_habit:
-            consumed_bool = item.consumed_value
+            
             consumed_str = item.consumed_text
             # Aquí se agrega el valor para created_at
-            conn.execute(personal_habit.insert().values(user_id=userid, consumed_value=consumed_bool, consumed_text=consumed_str, created_at=datetime.now()))
+            conn.execute(personal_habit.insert().values(user_id=userid,consumed=consumed_str, created_at=datetime.now()))
             conn.commit()
         
         conn.execute(family_antecedent.insert().values(user_id=userid, **new_data_fam_antec))

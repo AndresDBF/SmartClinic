@@ -47,7 +47,8 @@ from router.paciente.calification import qualify
 from router.paciente.antecedent import routeantec
 from router.notifications import notify
 from router.logout import routelogout
-from router.videocall import routezoom
+#from router.videocall import routezoom
+from router.agoracall import routeagora
 #from router.test_image import router
 
 app = FastAPI()
@@ -57,7 +58,7 @@ app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
 
 #usuarios
 
-app.include_router(routezoom)
+app.include_router(routeagora)
 app.include_router(user)
 app.include_router(imageuser)
 app.include_router(routeantec)

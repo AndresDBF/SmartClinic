@@ -20,22 +20,26 @@ ALGORITHM = "HS256"
 async def get_rules():  
     with engine.connect() as conn:
         query = conn.execute(roles.select()).fetchall()
-        conn.execute(lval.insert().values([
-            {"id": 1, "tipval": "PRNOTF", "description": "Alta"},
-            {"id": 2, "tipval": "PRNOTF", "description": "Media"},
-            {"id": 3, "tipval": "PRNOTF", "description": "Baja"},
-            {"id": 4, "tipval": "CALDOC", "description": "Muy mala"},
-            {"id": 5, "tipval": "CALDOC", "description": "Mala"},
-            {"id": 6, "tipval": "CALDOC", "description": "Buena"},
-            {"id": 7, "tipval": "CALDOC", "description": "Muy Buena"},
-            {"id": 8, "tipval": "CALDOC", "description": "Excelente"},
-            {"id": 4, "tipval": "CALDOC", "description": "Regular"},
-            {"id": 5, "tipval": "CALDOC", "description": "Amigable"},
-            {"id": 6, "tipval": "CALDOC", "description": "Entretenida"},
-            {"id": 7, "tipval": "CALDOC", "description": "Fantastica"}
-        ]))
-        conn.commit()
+        query_lval = conn.execute(lval.select()).fetchall()
+
+        if not query_lval:
+            conn.execute(lval.insert().values([
+                {"id": 1, "tipval": "PRNOTF", "description": "Alta"},
+                {"id": 2, "tipval": "PRNOTF", "description": "Media"},
+                {"id": 3, "tipval": "PRNOTF", "description": "Baja"},
+                {"id": 4, "tipval": "CALDOC", "description": "Muy mala"},
+                {"id": 5, "tipval": "CALDOC", "description": "Mala"},
+                {"id": 6, "tipval": "CALDOC", "description": "Buena"},
+                {"id": 7, "tipval": "CALDOC", "description": "Muy Buena"},
+                {"id": 8, "tipval": "CALDOC", "description": "Excelente"},
+                {"id": 9, "tipval": "CALDOC", "description": "Regular"},
+                {"id": 10, "tipval": "CALDOC", "description": "Amigable"},
+                {"id": 11, "tipval": "CALDOC", "description": "Entretenida"},
+                {"id": 12, "tipval": "CALDOC", "description": "Fantastica"}
+            ]))
+            conn.commit()
         if not query:
+            print(not query and not query_lval)
             roles_data = [
                 {"role_id": 1, "role_name": "Admin"},
                 {"role_id": 2, "role_name": "Patient"},

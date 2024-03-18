@@ -32,7 +32,7 @@ async def get_doctors(current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         data_doctors = conn.execute(users.select().
                                     join(user_roles, users.c.id == user_roles.c.user_id).
-                                    where(user_roles.c.role_id==2)).fetchall()
+                                    where(user_roles.c.role_id==3)).fetchall()
         if data_doctors is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No hay doctores registrados")
         experience = conn.execute(experience_doctor.select().
