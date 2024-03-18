@@ -35,7 +35,7 @@ async def generate_token():
 
 
     
-@routeagora.post("/regenerate_channel_token/")
+@routeagora.post("/regenerate_channel_token/") 
 async def regenerate_channel_token():
     try:
         token_builder = RtcTokenBuilder()
