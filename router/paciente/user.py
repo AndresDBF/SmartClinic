@@ -14,6 +14,7 @@ from model.usercontact import usercontact
 from model.images.user_image_profile import user_image_profile
 from model.roles.roles import roles
 from model.roles.user_roles import user_roles
+from model.experience_doctor import experience_doctor
 
 from schema.user_schema import UserSchema, DataUser, UserContact, verify_email, UserUpdated, UserContactUpdated, UserImageProfile
 from schema.userToken import UserInDB, User, OAuth2PasswordRequestFormWithEmail
@@ -47,6 +48,9 @@ from router.logout import get_current_user
 security = HTTPBearer()
 
 load_dotenv()
+
+SECRET_KEY="0d227dc4d6ac7f607f532c85f5d8770215f3aa12398645b3bb74f09f1ebcbd51"
+ALGORITHM="HS256"
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
@@ -110,7 +114,7 @@ def verify_iden(tipid: str, gender: str):
     return True
     
 @user.post("/api/user/register/",  status_code=status.HTTP_201_CREATED)
-async def create_user(tiprol:str, request: Request,username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(None)):
+async def create_user(tiprol:str, request: Request, doc_especiality:str = Form(None, description="obligatorio en caso de registrar doctor"), username: str = Form(...),email: EmailStr = Form(...),password: str = Form(...),name: str = Form(...),last_name: str = Form(...),gender: str = Form(...),birthdate: date = Form(...),tipid: str = Form(...),identification: int = Form(...),phone: str = Form(...),country: str = Form(...),state: str = Form(...),direction: str = Form(...),image: UploadFile = File(None)):
     try:
         role = verify_tiprol(tiprol)
         print(role)
@@ -135,11 +139,23 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
                         id_contact = 1
                     hashed_password = pwd_context.hash(password)
                     new_user["password"] = hashed_password
-                    if role == "Patient" or role == "Doctor":
+                    if role == "Patient":
                         print("entra en el primer if")
                         stmt = insert(users).values(username=new_user["username"],email=new_user["email"],password=new_user["password"],name=new_user["name"],last_name=new_user["last_name"],gender=new_user["gender"],birthdate=new_user["birthdate"],tipid=new_user["tipid"],identification=new_user["identification"],disabled=new_user["disabled"], verify_ident=new_user["verify_ident"])
                         result = conn.execute(stmt)
                         userid = result.lastrowid
+                        conn.commit()
+                    if role == "Doctor":
+                        stmt = insert(users).values(username=new_user["username"],email=new_user["email"],password=new_user["password"],name=new_user["name"],last_name=new_user["last_name"],gender=new_user["gender"],birthdate=new_user["birthdate"],tipid=new_user["tipid"],identification=new_user["identification"],disabled=new_user["disabled"], verify_ident=new_user["verify_ident"])
+                        result = conn.execute(stmt)
+                        userid = result.lastrowid
+                        conn.commit()
+                        if doc_especiality is None:
+                            conn.execute(users.delete().where(users.c.id==userid))
+                            conn.commit()
+                            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debe especificar el tipo de Especialidad del Doctor")
+                        doc_especiality = doc_especiality.title()
+                        conn.execute(experience_doctor.insert().values(user_id=userid, name_exper=doc_especiality))
                         conn.commit()
                     if role == "Admin":
                         print("entra en el segundo if ")
@@ -168,10 +184,10 @@ async def create_user(tiprol:str, request: Request,username: str = Form(...),ema
                                 pr_photo = hashlib.sha256(content_profile_image).hexdigest()
                                 with open(f"img/profile/{pr_photo}.png", "wb") as file_ident:
                                     file_ident.write(content_profile_image)
-                                with engine.connect() as conn:
-                                    query = user_image_profile.insert().values(user_id=userid, image_profile_original=image.filename, image_profile=pr_photo)
-                                    conn.execute(query)
-                                    conn.commit()     
+                                
+                                query = user_image_profile.insert().values(user_id=userid, image_profile_original=image.filename, image_profile=pr_photo)
+                                conn.execute(query)
+                                conn.commit()     
                                 file_path_prof = f"./img/profile/{pr_photo}"
                                 image_ident = FileResponse(file_path_prof)  
                                 base_url = str(request.base_url)
@@ -257,12 +273,12 @@ def verify_password(plane_password, hashed_password):
 def create_token(data: dict, time_expire: Union[datetime,None] = None):
     data_copy = data.copy()
     if time_expire is None:
-        expires = datetime.utcnow() +  timedelta(minutes=15)#datetime.utcnow() trae la hora de ese instante
+        expires = datetime.utcnow() +  timedelta(minutes=700)#datetime.utcnow() trae la hora de ese instante
     else:
         expires = datetime.utcnow() + time_expire
     print(expires)
     data_copy.update({"exp": expires})
-    token_jwt = jwt.encode(data_copy, key=os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM"))
+    token_jwt = jwt.encode(data_copy, key=SECRET_KEY, algorithm=ALGORITHM)
 
     return token_jwt
 
@@ -290,6 +306,7 @@ async def user_login(tiprol: str, email: str = Form(...), password: str = Form(.
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El parametro query es requerido")            
         try:
             role = verify_tiprol(tiprol)
+            
             with engine.connect() as conn:
                 result = conn.execute(users.select().where(users.c.email == email)).first()
                 if result is not None:
@@ -302,7 +319,7 @@ async def user_login(tiprol: str, email: str = Form(...), password: str = Form(.
                         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El tipo de usuario no coincide con el usuario registrado")
                     stored_password_hash = result[3]
                     if pwd_context.verify(password, stored_password_hash):
-                    
+                        print("entra aqui")
                         user = authenticate_user(email, password)
                         access_token_expires = timedelta(minutes=30)
                         access_token_jwt = create_token({"sub": user.email}, access_token_expires)
@@ -325,7 +342,7 @@ async def user_login(tiprol: str, email: str = Form(...), password: str = Form(.
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token = credentials.credentials  # Obtiene el token de las credenciales
-        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales de Autenticacion Invalidas")
@@ -496,7 +513,9 @@ async def create_user(
 
 #---------------codigo guardado para envio de correo de verificacion---------------------   
     
-def send_verification_email(email, user_id, request: Request):
+""" def send_verification_email(email, user_id, request: Request):
+    with engine.connect() as conn:
+        name = conn.execute(select(users.c.name, users.c.last_name).select_from(users).where(users.c.id==user_id)).first()
     sender_email = "andrespruebas222@gmail.com"
     sender_name = "Andres Becerra"
     subject = "Verificación de cuenta"
@@ -517,6 +536,47 @@ def send_verification_email(email, user_id, request: Request):
         server.starttls()
         server.login(sender_email, "vhvcinzspvlwoftc")  # Coloca tu contraseña aquí
         server.send_message(message)
-    return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK)
+    return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK) """
     
 #---------------------para verificar el token------------------------------------------------------------
+
+
+def send_verification_email(email, user_id, request: Request):
+    with engine.connect() as conn:
+        with engine.connect() as conn:
+            name = conn.execute(select(users.c.name, users.c.last_name).select_from(users).where(users.c.id==user_id)).first()
+        sender_email = "andrespruebas222@gmail.com"
+        sender_name = "Andres Becerra"
+        subject = "Verificación de cuenta"
+        base_url = str(request.base_url)
+        verification_link = f"{base_url.rstrip('/')}/api/verify/{user_id}"
+
+        # Construir el mensaje HTML
+        html = f"""
+            <img src="../correo.png" alt="Imagen" style="width: 100%; display:block; margin-bottom: 20px;"/>
+            <h2 style="text-align: center;color: #0fcca3; font-weight:lighter">Hola <b>{name[0]} {name[1]}</b></h2> 
+            <h3 style="text-align: center;color: #0fcca3; font-weight:lighter">Te damos la Bienvenida a SmartClinic</h3>
+            <h3 style="text-align: center;color: #0fcca3; font-weight:lighter">Para comenzar a formar parte de nuestro Equipo</h3>
+            <h3 style="text-align: center;color: #0fcca3; font-weight:lighter">Puedes verificar tu correo electronico haciendo clic en el siguiente enlace</h3>
+            <br />
+            <a href="{verification_link}" style="display:block; width:200px; margin: 0 auto; padding: 10px 20px; background-color:#131382; color: #ffffff; text-align: center; font-weight:bold; text-decoration:none;">Verificar</a>
+            <br />
+            <h3 style="text-align: center;color: #0fcca3; font-weight:lighter">Si no has sido tu, puedes ignorar este mensaje</h3>
+            <br />
+            <h3 style="text-align: center;color: #0fcca3; font-weight:lighter">De parte del Equipo SmartClinic!</h3>
+        """
+
+        # Configurar el mensaje de correo electrónico
+        message = MIMEMultipart("alternative")
+        message["From"] = sender_email
+        message["To"] = email
+        message["Subject"] = subject
+        message.attach(MIMEText(html, "html"))
+
+        # Enviar el correo electrónico
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(sender_email, "vhvcinzspvlwoftc")  # Coloca tu contraseña aquí
+            server.send_message(message)
+
+    return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK)

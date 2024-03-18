@@ -24,13 +24,18 @@ from sqlalchemy.exc import IntegrityError
 qualify = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @qualify.get("/api/user/qualifydoc/")
-async def calification_doctor(user_id: int, request: Request, current_user = Depends(get_current_user)):
+async def calification_doctor(doc_id: int, request: Request, current_user = Depends(get_current_user)):
     with engine.connect() as conn: 
-        doctor = conn.execute(users.select().where(users.c.id==user_id)).first()
-        exp_doc = conn.execute(experience_doctor.select().where(experience_doctor.c.user_id==user_id)).first()
-        img_doctor = conn.execute(user_image_profile.select().where(user_image_profile.c.user_id==user_id)).first()
-    if doctor is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado ningun usuario")
+        doctor = conn.execute(users.select().
+                              join(user_roles, users.c.id==user_roles.c.user_id).
+                              where(users.c.id==doc_id).
+                              where(user_roles.c.role_id==3)).first()
+        if doctor is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El usuario no es doctor o no existe")
+        exp_doc = conn.execute(experience_doctor.select().where(experience_doctor.c.user_id==doc_id)).first()
+        if exp_doc is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El doctor no tiene registrada una especialidad")
+        img_doctor = conn.execute(user_image_profile.select().where(user_image_profile.c.user_id==doc_id)).first() 
     if img_doctor is not None:
         file_path = f"./img/profile/{img_doctor.image_profile}.png"
         if not os.path.exists(file_path):
@@ -58,6 +63,9 @@ async def calification_doctor(user_id: int, request: Request, current_user = Dep
 @qualify.post("/api/user/createqualy/")
 async def create_calification(doc_id: int, stars: StarsDoctor = Form(...), notes: str = Form(None), experiece: ExperienceDoctor = Form(...), current_user: str = Depends(get_current_user)):
     with engine.connect() as conn: 
+        doctor = conn.execute(users.select().where(users.c.id==doc_id)).first()
+        if doctor is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado ningun usuario")
         if notes:
             conn.execute(calification_doc.insert().values(user_id=doc_id, points=stars, notes= notes, experience= experiece)) 
             conn.commit()
