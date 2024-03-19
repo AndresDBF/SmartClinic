@@ -319,7 +319,7 @@ async def user_login(tiprol: str, email: str = Form(...), password: str = Form(.
                         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El tipo de usuario no coincide con el usuario registrado")
                     stored_password_hash = result[3]
                     if pwd_context.verify(password, stored_password_hash):
-                        print("entra aqui")
+                        
                         user = authenticate_user(email, password)
                         access_token_expires = timedelta(minutes=30)
                         access_token_jwt = create_token({"sub": user.email}, access_token_expires)

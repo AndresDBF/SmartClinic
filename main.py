@@ -55,6 +55,7 @@ app = FastAPI()
 app.title = "Documentación SmartClinic"
 app.mount("/img/profile", StaticFiles(directory="img/profile"), name="profile_images")
 app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
+app.mount("/img/patient", StaticFiles(directory="img/patient"), name="exam_patient")
 
 #usuarios
 
