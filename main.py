@@ -48,7 +48,8 @@ from router.paciente.antecedent import routeantec
 from router.notifications import notify
 from router.logout import routelogout
 #from router.videocall import routezoom
-from router.agoracall import routeagora
+#from router.agoracall import routeagora
+from router.testwebsockets import routeagora
 #from router.test_image import router
 
 app = FastAPI()
