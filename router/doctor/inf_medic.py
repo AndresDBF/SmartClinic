@@ -30,14 +30,14 @@ routeim = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_F
 
 
 #optimizar las consultas de este endpoint
-@routeim.get("/doctor/videocall/user/{user_id}")
-async def get_info_user(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
+@routeim.get("/doctor/videocall/user/")
+async def get_info_user(patient_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
-        user =  conn.execute(users.select().where(users.c.id == user_id)).first()
+        user =  conn.execute(users.select().where(users.c.id == patient_id)).first()
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
             
-        user_contact =  conn.execute(usercontact.select().where(usercontact.c.user_id==user_id)).first()
+        user_contact =  conn.execute(usercontact.select().where(usercontact.c.user_id==patient_id)).first()
         
         number_of_strings = 5
         length_of_string = 9
@@ -53,13 +53,15 @@ async def get_info_user(user_id: int, request: Request, current_user: str = Depe
                 person_antecedent.c.id
             )
             .select_from(person_antecedent)
-            .where(person_antecedent.c.user_id==user_id)).first()
+            .where(person_antecedent.c.user_id==patient_id)).first()
         if ant_per is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron antecedentes del paciente")
-        hobb_per = conn.execute(personal_habit.select().where(personal_habit.c.user_id==user_id)).first()
-        fam_per = conn.execute(family_antecedent.select().where(family_antecedent.c.user_id==user_id)).first()
+        hobb_per = conn.execute(personal_habit.select().where(personal_habit.c.user_id==patient_id)).first()
+        fam_per = conn.execute(family_antecedent.select().where(family_antecedent.c.user_id==patient_id)).first()
         
-        image_row = conn.execute(user_image.select().where(user_image.c.user_id == user_id)).first()
+        image_row = conn.execute(user_image.select().where(user_image.c.user_id == patient_id)).first()
+        print(image_row)
+        print(image_row is not None)
         if image_row is not None:
             file_path_ident = f"./img/profile/{image_row.image_ident}.png"
             file_path_self = f"./img/profile/{image_row.image_self}.png"
@@ -108,14 +110,14 @@ async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper:
                 person_antecedent.c.hypertension,
                 person_antecedent.c.diabetes,
                 person_antecedent.c.asthma, 
-                person_antecedent.c.allergy_medicine,
-                person_antecedent.c.allergy_foot,
-                person_antecedent.c.other_condition,
-                person_antecedent.c.operated,
-                person_antecedent.c.take_medicine,
-                person_antecedent.c.religion,
+                person_antecedent.c.allergy_medicine_value,
+                person_antecedent.c.allergy_foot_value,
+                person_antecedent.c.other_condition_value,
+                person_antecedent.c.operated_value,
+                person_antecedent.c.take_medicine_value,
+                person_antecedent.c.religion_value,
                 person_antecedent.c.job_occupation,
-                person_antecedent.c.disease_six_mounths,
+                person_antecedent.c.disease_six_mounths_value,
                 person_antecedent.c.last_visit_medic,
                 person_antecedent.c.visit_especiality,
                 person_antecedent.c.created_at,

@@ -17,6 +17,8 @@ from model.family_antecedent import family_antecedent
 from model.blacklist_token_videocall import blacklist_token_videocall
 from model.agora_rooms import agora_rooms
 from model.medical_exam import medical_exam
+from model.comments import comments
+from model.history_comments import history_comments
 from model.images.files_medical_exam_doc import files_medical_exam_doc
 from model.images.files_medical_exam_pat import files_medical_exam_pat
 from model.inf_medic import inf_medic
@@ -43,13 +45,15 @@ from router.paciente.tipconsult import routetipco
 from router.doctor.diagnostic import routediag
 from router.doctor.medical_exam import exam
 from router.doctor.inf_medic import routeim
+from router.doctor.consult_info import doctconsult
 from router.paciente.calification import qualify
 from router.paciente.antecedent import routeantec
+from router.comments.comments import routecomments
 from router.notifications import notify
 from router.logout import routelogout
 #from router.videocall import routezoom
 #from router.agoracall import routeagora
-from router.testwebsockets import routeagora
+from router.testwebsockets import router_websockets
 #from router.test_image import router
 
 app = FastAPI()
@@ -59,8 +63,8 @@ app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
 app.mount("/img/patient", StaticFiles(directory="img/patient"), name="exam_patient")
 
 #usuarios
-
-app.include_router(routeagora)
+app.include_router(routecomments)
+app.include_router(router_websockets)
 app.include_router(user)
 app.include_router(imageuser)
 app.include_router(routeantec)
@@ -78,6 +82,7 @@ app.include_router(routeuserrol)
 
 #doctor
 app.include_router(doctorhome)
+app.include_router(doctconsult)
 app.include_router(exam)
 app.include_router(routedoc)
 app.include_router(routeim)

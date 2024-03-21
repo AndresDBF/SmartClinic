@@ -71,14 +71,11 @@ async def user_antecedent(user_id: int,  current_user: str = Depends(get_current
                 "take_medicine_text": row[14],
                 "religion_value": row[15],
                 "religion_text": row[16],
-                "job_occupation_value": row[17],
-                "job_occupation_text": row[18],
-                "disease_six_mounths_value": row[19],
-                "disease_six_mounths_text": row[20],
-                "last_visit_medic_value": row[21],
-                "last_visit_medic_text": row[22],
-                "visit_especiality_value": row[23],
-                "visit_especiality_text": row[24]
+                "job_occupation": row[17],
+                "disease_six_mounths_value": row[18],
+                "disease_six_mounths_text": row[19],
+                "last_visit_medic_text": row[20],
+                "visit_especiality_text": row[21]
             }
             for row in per_ant
         ]

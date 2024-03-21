@@ -301,32 +301,25 @@ def verify_tiprol(tiprol: str):
     
 
 @user.post("/api/user/login/", status_code=status.HTTP_200_OK)
-async def user_login(tiprol: str, email: str = Form(...), password: str = Form(...)):
-        if tiprol is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El parametro query es requerido")            
+async def user_login(email: str = Form(...), password: str = Form(...)):
         try:
-            role = verify_tiprol(tiprol)
-            
             with engine.connect() as conn:
                 result = conn.execute(users.select().where(users.c.email == email)).first()
                 if result is not None:
                     id = result.id
-                    query_role = conn.execute(roles.select().
+                    role = conn.execute(roles.select().
                                     join(user_roles, roles.c.role_id == user_roles.c.role_id).
-                                    join(users, user_roles.c.user_id == users.c.id).
-                                    where(user_roles.c.user_id == result[0]).where(roles.c.role_name==tiprol)).first()
-                    if query_role is None:
-                        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El tipo de usuario no coincide con el usuario registrado")
+                                    where(user_roles.c.user_id == id)).first()
+                    
                     stored_password_hash = result[3]
                     if pwd_context.verify(password, stored_password_hash):
-                        
                         user = authenticate_user(email, password)
                         access_token_expires = timedelta(minutes=30)
                         access_token_jwt = create_token({"sub": user.email}, access_token_expires)
         
                         return {
                             "id_user": id,
-                            "tip_user": role,
+                            "tip_user": role[1],
                             "access_token": access_token_jwt,
                             "token_types": "bearer"
                         }
@@ -414,7 +407,6 @@ async def edit_user(user_id: int, request: Request, current_user: str = Depends(
 @user.put("/api/user/update/{user_id}")  
 async def create_user(
     user_id: int,
-    tiprol:str,
     request: Request,
     username: str = Form(None),
     email: EmailStr = Form(None),

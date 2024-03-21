@@ -20,7 +20,7 @@ def add_revoked_token(black_token: str):
         new_black_token = conn.execute(blacklist_token.insert().values(token=black_token))
         conn.commit()
 
-# Función para verificar si un token está revocado
+
 def is_token_revoked(token: str):
     with engine.connect() as conn:
         query =  conn.execute(blacklist_token.select()
@@ -29,11 +29,11 @@ def is_token_revoked(token: str):
         if query is not None:
             return query
 
-# Lógica para cerrar sesión
+
 @routelogout.post("/logout")
 async def logout(token: str):
     try:
-        # Agrega el token actual a la lista negra en la base de datos
+       
         with engine.connect() as conn:
             add_revoked_token(token)
         return {"message": "Se ha Cerrado la Sesion"}
@@ -41,17 +41,17 @@ async def logout(token: str):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error al cerrar sesión")
 
 
-# Lógica para verificar el token
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        token = credentials.credentials  # Obtiene el token de las credenciales
+        token = credentials.credentials 
         if is_token_revoked(token):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Revocado")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales de Autenticacion Invalidas")
-        # Puedes hacer alguna lógica adicional para verificar el usuario si es necesario
+      
         return email
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
