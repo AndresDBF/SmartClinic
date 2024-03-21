@@ -81,7 +81,7 @@ async def info_medic_consult(doc_id: int, patient_id: str, request: Request):
                 file_path_doc = f"./img/patient/{file.pdf_exam}.pdf"
             else:
                 file_path_doc = f"./img/patient/{file.pdf_exam}.pdf"
-                
+            #terminar aqui 
             if not os.path.exists(file_path):
                 return {"error": "El archivo no existe"}
                 
