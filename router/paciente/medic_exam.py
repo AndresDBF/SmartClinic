@@ -30,7 +30,7 @@ userexam = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"mes
 
 
 
-@userexam.get("/api/user/myexam_pend/")
+@userexam.get("/api/user/my-exam_pend/")
 async def list_user_exam(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         exams = conn.execute(
@@ -55,9 +55,8 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
         {
             "id": exam[0],
             "done": exam[1],
-            "file_pdf": exam[2],
-            "file_image": exam[3],
-            "created_at": exam[4]
+            "datetime": exam[4],
+            "files": []
         } 
         for exam in exams if exam[2] is not None or exam[3] is not None
     ]
@@ -67,6 +66,7 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
     for exam in list_exams:
         exam_id = exam["id"]
         full_data = exam
+        
         with engine.connect() as conn:
             files = conn.execute(files_medical_exam_doc.select().where(files_medical_exam_doc.c.exam_id == exam_id)).first()
         if files.pdf_exam_original:
@@ -79,7 +79,10 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
                 prof_img = FileResponse(file_path_file)
                 base_url = str(request.base_url)
                 url_file = f"{base_url.rstrip('/')}/img/medic/{files.pdf_exam}{files.pdf_exam_original[-4:]}" 
+                name_file = files.pdf_exam_original[:-4]
+                full_data["name"] = name_file
                 full_data["url_file"] = url_file
+
             else:
                 file_path_file = f"./img/medic/{files.pdf_exam}{files.pdf_exam_original[-5:]}"
                 print(file_path_file)
@@ -89,7 +92,10 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
                 prof_img = FileResponse(file_path_file)
                 base_url = str(request.base_url)
                 url_file = f"{base_url.rstrip('/')}/img/medic/{files.pdf_exam}{files.pdf_exam_original[-5:]}" 
+                name_file = files.pdf_exam_original[:-5]
+                full_data["name"] = name_file
                 full_data["url_file"] = url_file
+               
         if files.image_exam_original:
             file_path_file = f"./img/medic/{files.image_exam}.png"
             print(file_path_file)
@@ -99,11 +105,14 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
             prof_img = FileResponse(file_path_file)
             base_url = str(request.base_url)
             url_file = f"{base_url.rstrip('/')}/img/medic/{files.image_exam}.png" 
-            full_data["url_photo"] = url_file
+            name_file = files.pdf_exam_original[:-4]
+            full_data["name"] = name_file
+            full_data["url_file"] = url_file
+        #REVISAR ESTE CODIGO PARA QUE MUESTRE BIEN ESTRUCTURADO EL JSON 
         data_list.append(full_data)
     return data_list
 
-@userexam.get("/api/user/myexam/")
+@userexam.get("/api/user/my-exam/")
 async def list_user_exam(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         exams = conn.execute(
@@ -128,9 +137,7 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
         {
             "id": exam[0],
             "done": exam[1],
-            "file_pdf": exam[2],
-            "file_image": exam[3],
-            "created_at": exam[4]
+            "datetime": exam[4]
         } 
         for exam in exams if exam[2] is not None or exam[3] is not None
     ]
@@ -140,6 +147,7 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
     for exam in list_exams:
         exam_id = exam["id"]
         full_data = exam
+        data_list.append(full_data)
         with engine.connect() as conn:
             files = conn.execute(files_medical_exam_pat.select().where(files_medical_exam_pat.c.exam_id == exam_id)).first()
         if files.pdf_exam_original:
@@ -153,7 +161,8 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
                 prof_img = FileResponse(file_path_file)
                 base_url = str(request.base_url)
                 url_file = f"{base_url.rstrip('/')}/img/patient/{files.pdf_exam}{files.pdf_exam_original[-4:]}" 
-                full_data["url_file"] = url_file
+                name_file = files.pdf_exam_original[:-4]
+                data_list.append({"name": name_file, "url_file": url_file})
             else:
                 file_path_file = f"./img/patient/{files.pdf_exam}{files.pdf_exam_original[-5:]}"
                 print(file_path_file)
@@ -164,7 +173,8 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
                 prof_img = FileResponse(file_path_file)
                 base_url = str(request.base_url)
                 url_file = f"{base_url.rstrip('/')}/img/patient/{files.pdf_exam}{files.pdf_exam_original[-5:]}" 
-                full_data["url_file"] = url_file
+                name_file = files.pdf_exam_original[:-5]
+                data_list.append({"name": name_file, "url_file": url_file})
         if files.image_exam_original:
             file_path_file = f"./img/patient/{files.image_exam}.png"
             print(file_path_file)
@@ -174,13 +184,12 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
             prof_img = FileResponse(file_path_file)
             base_url = str(request.base_url)
             url_file = f"{base_url.rstrip('/')}/img/patient/{files.image_exam}.png" 
-            full_data["url_photo"] = url_file
-        data_list.append(full_data)
+            name_file = files.image_exam_original[:-4]
+            data_list.append({"name": name_file, "url_file": url_file})
+        
     return data_list
 
-from typing import List
-
-@userexam.post("/api/user/updateexam/", status_code=status.HTTP_201_CREATED)
+@userexam.post("/api/user/update-exam/", status_code=status.HTTP_201_CREATED)
 async def update_exam(exam_id: int, request: Request, files: List[UploadFile] = File(None), photos: List[UploadFile] = File(None),  current_user: str = Depends(get_current_user)):
     try:
         print("este es el file: ",files)
@@ -195,9 +204,7 @@ async def update_exam(exam_id: int, request: Request, files: List[UploadFile] = 
                     if file.content_type not in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf"]:
                         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser un archivo Word o PDF, JPG, JPEG o PNG")
                     url_files = await insert_file_exam(exam_id, request, file)
-                    data_files.append({"url_file": url_files})
-            
-                    
+                    data_files.append({"files": url_files})  
         # Procesar las fotos
         if photos:
             for photo in photos:
@@ -206,14 +213,14 @@ async def update_exam(exam_id: int, request: Request, files: List[UploadFile] = 
                     if photo.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
                         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser un archivo Word o PDF, JPG, JPEG o PNG")
                     url_files = await insert_file_exam(exam_id, request, photo)
-                    url_iamges.append({"url_images": url_files})
+                    url_iamges.append({"files": url_files})
         else:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Debe adjuntar almenos 1 archivo")            
         return JSONResponse(content={
                     "saved": True,
                     "message": "examen cargado correctamente",
                     "url_files": data_files,
-                    "url_images": url_iamges
+                    
                 }, status_code=status.HTTP_201_CREATED)
     
     except IntegrityError as e:
@@ -266,11 +273,10 @@ async def insert_two_files_exam(id_exam: int, request: Request, file: UploadFile
 async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
     try:   
         content_file = await file.read()
-           
         pr_file = hashlib.sha256(content_file).hexdigest()
         with engine.connect() as conn:
             if file.content_type in ["image/jpeg", "image/jpg", "image/png"]: 
-                with open(f"img/medic/{pr_file}.png", "wb") as file_file:
+                with open(f"img/patient/{pr_file}.png", "wb") as file_file:
                     file_file.write(content_file)
                     conn.execute(files_medical_exam_pat.insert().values(exam_id=id_exam, 
                                                                             image_exam_original=file.filename,
@@ -298,11 +304,23 @@ async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
 
             base_url = str(request.base_url)
             if file.content_type in ["image/jpeg", "image/jpg", "image/png"]: 
-                return f"{base_url.rstrip('/')}/img/patient/{pr_file}.png"          
+                return {
+                    "name": file.filename,
+                    "url_file": f"{base_url.rstrip('/')}/img/patient/{pr_file}.png"
+                }
+                          
             elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                return f"{base_url.rstrip('/')}/img/patient/{pr_file}.docx"    
+                return {
+                    "name": file.filename,
+                    "url_file": f"{base_url.rstrip('/')}/img/patient/{pr_file}.docx"
+                }
+                
             elif file.content_type == "application/pdf":
-                return f"{base_url.rstrip('/')}/img/patient/{pr_file}.pdf"    
+                return {
+                    "name": file.filename,
+                    "url_file": f"{base_url.rstrip('/')}/img/patient/{pr_file}.pdf"
+                }
+                    
     except IntegrityError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe") from e
             
@@ -311,6 +329,52 @@ async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
 
  
 
+    with engine.connect() as conn:
+        insert_exam = conn.execute(medical_exam.insert().values(user_id=patient_id, created_at=func.now()))
+        conn.commit()
+        id_ex = insert_exam.lastrowid
+        data_exam = conn.execute(select(medical_exam.c.id,
+                                        medical_exam.c.user_id,
+                                        medical_exam.c.done,
+                                        medical_exam.c.created_at).where(medical_exam.c.id==id_ex)).first()    
+        print(data_exam)
+    if file_docu or image:  
+        if file_docu and image:  
+            print("entra en el primer if")
+            url_files = await insert_two_files_exam(id_ex, request, file_docu, image)
+            print("este es el url_files: ",url_files )
+            medic_exam = {
+                "exam_id": data_exam[0],
+                "user_id": data_exam[1],
+                "datetime": data_exam[3],
+                "done": data_exam[2]
+            }
+            medic_exam["files"] = url_files
+        elif file_docu:  # Si solo hay documentos, inserta el archivo de documento
+            print("entra en el segundo if")
+            url_files = await insert_file_exam(id_ex, request, file_docu)
+            medic_exam = {
+                "exam_id": data_exam[0],
+                "user_id": data_exam[1],
+                "datetime": data_exam[3],
+                "done": data_exam[2]
+            }
+            medic_exam["files"] = url_files
+        elif image:  # Si solo hay imágenes, inserta la imagen
+            print("entra en el tercer if")
+            url_files = await insert_file_exam(id_ex, request, image)
+            medic_exam = {
+                "exam_id": data_exam[0],
+                "user_id": data_exam[1],
+                "datetime": data_exam[3],
+                "done": data_exam[2],
+            }
+            medic_exam["files"] = url_files
+        return medic_exam
+    else:
+        # Si no se proporcionan ni imágenes ni documentos, devuelve un mensaje de error
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debes proporcionar al menos un archivo o imagen.")
+     
 
 
 
@@ -339,13 +403,7 @@ async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
 
 
 
-
-
-
-
-
-
-@userexam.get("/api/user/download_exam/")
+@userexam.get("/api/user/download-exam/")
 async def download_file(filename: str):
     file_path = f"./img/patient/{filename}"
     if not os.path.exists(file_path):

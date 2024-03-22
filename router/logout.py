@@ -30,7 +30,7 @@ def is_token_revoked(token: str):
             return query
 
 
-@routelogout.post("/logout")
+@routelogout.post("/logout/")
 async def logout(token: str):
     try:
        

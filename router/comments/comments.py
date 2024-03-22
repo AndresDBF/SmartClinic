@@ -115,7 +115,7 @@ async def history_comments_users(doc_id: int, patient_id, request: Request, page
     
     return data_noti
 
-@routecomments.post("/api/create/comment/") 
+@routecomments.post("/api/create-comment/") 
 async def create_comment(user_id: int, message: str = Form(...)):
     with engine.connect() as conn: 
         ver_us = conn.execute(users.select().where(users.c.id==user_id)).first()

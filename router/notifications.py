@@ -55,15 +55,6 @@ async def update_notifications(notif_id: int, current_user: str = Depends(get_cu
         return JSONResponse(content={
             "touch_notification": True})
 
-
-
-
-
-
-
-
-
-
 @notify.get("/user/notifications/")
 async def get_list_notifications(request: Request, user_id: int, page: Optional[int] = Query(1, ge=1), current_user: str = Depends(get_current_user)):
     page_size = 25

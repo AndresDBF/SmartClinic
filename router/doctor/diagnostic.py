@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 
 routediag = APIRouter(tags=["Diagnostic"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-@routediag.get("/doctor/diagnostic/{pat_consult_id}", status_code=status.HTTP_200_OK)
+@routediag.get("/doctor/diagnostic/{pat_consult_id}/", status_code=status.HTTP_200_OK)
 async def create_diagnostic(pat_consult_id: int, current_user: str = Depends(get_current_user)):
     try: 
         #para generar el id random 
@@ -63,7 +63,7 @@ def verify_gender(gender: date):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El genero no es valido")
     return True
         
-@routediag.post("/doctor/diagnostic/new/{patconsultid}", status_code=status.HTTP_201_CREATED)
+@routediag.post("/doctor/diagnostic-new/{patconsultid}/", status_code=status.HTTP_201_CREATED)
 async def create_diagnostic(patconsultid: int, diag: DiagnosticSchema, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         verify_patconsult = conn.execute(patient_consult.select().where(patient_consult.c.id == patconsultid)).first()
@@ -90,7 +90,7 @@ async def create_diagnostic(patconsultid: int, diag: DiagnosticSchema, current_u
     created_diag = DiagnosticSchema(**dict_diagnostic)
     return created_diag 
         
-@routediag.delete("/doctor/diagnostic/delete/{diag_id}")
+@routediag.delete("/doctor/diagnostic-delete/{diag_id}/")
 async def delete_diagnostic(diag_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         verify_id = conn.execute(diagnostic.select().where(diagnostic.c.id == diag_id)).first()

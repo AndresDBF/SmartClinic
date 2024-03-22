@@ -115,7 +115,7 @@ def is_valid_image(content_type):
 #--------------------NOTA ------------------------------------
 #DEJAMOS ESTE CODIGO COMENTADO EN CASO DE QUE NECESITE SER USADO 
 
-@imageuser.post("/api/imageupload/{user_id}", status_code=status.HTTP_200_OK)
+@imageuser.post("/api/image-upload/{user_id}/", status_code=status.HTTP_200_OK)
 async def upload_image(user_id: int, request: Request, image_ident: UploadFile = File(..., description="imagen de identidad"), image_self: UploadFile = File(..., description="imagen de selfie"),  current_user: str = Depends(get_current_user)):
     with engine.connect() as conn: 
         veri_admin = conn.execute(select(user_roles.c.role_id).

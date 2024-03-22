@@ -23,7 +23,7 @@ from typing import List
 
 exam = APIRouter(tags=["Medical Exam"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-@exam.get("/doctor/newmedicalex/", tags=["Video Call Doctor"])
+@exam.get("/doctor/new-medical-exam/", tags=["Video Call Doctor"])
 async def new_medic_exam(user_id: int, current_user: str = Depends(get_current_user)):
     ver_user = await verify_rol(user_id)
     if ver_user["role_id"] == 2:
@@ -71,10 +71,10 @@ async def insert_two_files_exam(id_exam: int, request: Request, files: List[Uplo
                 conn.commit()     
 
             base_url = str(request.base_url)
-            image_url = f"{base_url.rstrip('/')}/img/medic/{pr_photo}.png"          
+            image_url = f"{base_url.rstrip('/')}/img/medic/{pr_photo}.png"        
+            urls.append({"name": image.filename, "url_file": image_url})  
             file_url = f"{base_url.rstrip('/')}/img/medic/{pr_file}.pdf" if file.content_type == "application/pdf" else f"{base_url.rstrip('/')}/img/medic/{pr_file}.docx"
-            
-            urls.append({"url_file": file_url, "url_photo": image_url})
+            urls.append({"name": file.filename,  "url_file": file_url})
 
         return urls
 
@@ -129,12 +129,12 @@ async def insert_file_exam(id_exam: int, request: Request, files: List[UploadFil
                 file_url = f"{base_url.rstrip('/')}/img/medic/{pr_file}.docx"    
             if file.content_type == "application/pdf":
                 file_url = f"{base_url.rstrip('/')}/img/medic/{pr_file}.pdf"    
-            urls.append({"url_file": file_url})
+            urls.append({"name": file.filename, "url_file": file_url})
         return urls
     except IntegrityError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
 
-@exam.post("/doctor/createmedexam/", tags=["Video Call Doctor"])
+@exam.post("/doctor/create-medical-exam/", tags=["Video Call Doctor"])
 async def create_medic_exam(patient_id: int, request: Request,  file_docu: List[UploadFile] = File(None), image: List[UploadFile] = File(None),  current_user: str = Depends(get_current_user)):
     print(file_docu)
     print(image)
@@ -142,40 +142,76 @@ async def create_medic_exam(patient_id: int, request: Request,  file_docu: List[
         insert_exam = conn.execute(medical_exam.insert().values(user_id=patient_id, created_at=func.now()))
         conn.commit()
         id_ex = insert_exam.lastrowid
-        data_exam = conn.execute(medical_exam.select().where(medical_exam.c.id==id_ex)).first()    
-
+        data_exam = conn.execute(select(medical_exam.c.id,
+                                        medical_exam.c.user_id,
+                                        medical_exam.c.done,
+                                        medical_exam.c.created_at).where(medical_exam.c.id==id_ex)).first()    
+        print(data_exam)
     if file_docu or image:  
         if file_docu and image:  
             print("entra en el primer if")
             url_files = await insert_two_files_exam(id_ex, request, file_docu, image)
             print("este es el url_files: ",url_files )
             medic_exam = {
-                "id": data_exam[0],
+                "exam_id": data_exam[0],
                 "user_id": data_exam[1],
+                "datetime": data_exam[3],
                 "done": data_exam[2]
             }
-            medic_exam["url_files"] = url_files
+            medic_exam["files"] = url_files
         elif file_docu:  # Si solo hay documentos, inserta el archivo de documento
             print("entra en el segundo if")
             url_files = await insert_file_exam(id_ex, request, file_docu)
             medic_exam = {
-                "id": data_exam[0],
+                "exam_id": data_exam[0],
                 "user_id": data_exam[1],
-                "done": data_exam[2],
-                "url_file": url_files
+                "datetime": data_exam[3],
+                "done": data_exam[2]
             }
-            medic_exam["url_files"] = url_files
+            medic_exam["files"] = url_files
         elif image:  # Si solo hay imágenes, inserta la imagen
             print("entra en el tercer if")
             url_files = await insert_file_exam(id_ex, request, image)
             medic_exam = {
-                "id": data_exam[0],
+                "exam_id": data_exam[0],
                 "user_id": data_exam[1],
+                "datetime": data_exam[3],
                 "done": data_exam[2],
-                "url_photo": url_files
             }
-            medic_exam["url_files"] = url_files
+            medic_exam["files"] = url_files
         return medic_exam
     else:
         # Si no se proporcionan ni imágenes ni documentos, devuelve un mensaje de error
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debes proporcionar al menos un archivo o imagen.")
+     
+    
+    
+    
+""" 
+[
+  {
+    "id": 11,
+    "done": false,
+    
+    "files":[
+        "file":
+        {
+            "file": "La factibilidad de un proyecto.docx",
+            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
+            
+        },
+        {
+            "file": "La factibilidad de un proyecto.docx",
+            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
+        },
+        {
+            "file": "La factibilidad de un proyecto.docx",
+            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
+        },
+        {
+            "file": "La factibilidad de un proyecto.docx",
+            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
+        }
+    ],
+  }
+] """

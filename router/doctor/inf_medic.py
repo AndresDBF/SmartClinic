@@ -30,7 +30,7 @@ routeim = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_F
 
 
 #optimizar las consultas de este endpoint
-@routeim.get("/doctor/videocall/user/")
+@routeim.get("/doctor/videocall-user/")
 async def get_info_user(patient_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user =  conn.execute(users.select().where(users.c.id == patient_id)).first()
@@ -168,7 +168,7 @@ async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper:
     return result
 
 #modificar la optimizacion de este endpoint
-@routeim.post("/doctor/infomedic/create/")
+@routeim.post("/doctor/infomedic-create/")
 async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, idatent: str, infcase: str = Form(...), disease_act: str = Form(...), impre_diag: str = Form(...), medication_ind: str = Form(...), current_user: str = Depends(get_current_user)):
     print(idatent)
     with engine.connect() as conn:
@@ -187,7 +187,7 @@ async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, i
         "message": "Se ha creado el informe medico"
     }, status_code=status.HTTP_201_CREATED)
         
-@routeim.delete("/doctor/infmedic/delete/{diag_id}")
+@routeim.delete("/doctor/infmedic-delete/{diag_id}/")
 async def delete_diagnostic(diag_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         conn.execute(diagnostic.delete().where(diagnostic.c.id == diag_id))

@@ -203,6 +203,7 @@ async def create_user(tiprol:str, request: Request, doc_especiality:str = Form(N
                                 created_user = {
                                     "user":{
                                         "id": userid,
+                                        "tiprol": role,
                                         "username": new_user["username"],
                                         "email": new_user["email"],
                                         "name": new_user["name"],
@@ -228,7 +229,8 @@ async def create_user(tiprol:str, request: Request, doc_especiality:str = Form(N
                         access_token_jwt = create_token({"sub": user.email}, access_token_expires)
                     created_user = {
                         "user":{
-                             "id": userid,
+                            "id": userid,
+                            "tiprol": role,
                             "username": new_user["username"],
                             "email": new_user["email"],
                             "name": new_user["name"],
@@ -281,7 +283,6 @@ def create_token(data: dict, time_expire: Union[datetime,None] = None):
     token_jwt = jwt.encode(data_copy, key=SECRET_KEY, algorithm=ALGORITHM)
 
     return token_jwt
-
 def verify_tiprol(tiprol: str):
     tiprol = tiprol.lower()
     with engine.connect() as conn:
@@ -299,7 +300,6 @@ def verify_tiprol(tiprol: str):
             return namerole
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="el parametro tiprol no encuentra el tipo de rol")
     
-
 @user.post("/api/user/login/", status_code=status.HTTP_200_OK)
 async def user_login(email: str = Form(...), password: str = Form(...)):
         try:
@@ -314,7 +314,7 @@ async def user_login(email: str = Form(...), password: str = Form(...)):
                     stored_password_hash = result[3]
                     if pwd_context.verify(password, stored_password_hash):
                         user = authenticate_user(email, password)
-                        access_token_expires = timedelta(minutes=30)
+                        access_token_expires = timedelta(minutes=120)
                         access_token_jwt = create_token({"sub": user.email}, access_token_expires)
         
                         return {
@@ -344,7 +344,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
 
-@user.get("/api/user/show/{user_id}")
+@user.get("/api/user/show/{user_id}/")
 async def edit_user(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id == user_id)).first()
@@ -404,7 +404,7 @@ async def edit_user(user_id: int, request: Request, current_user: str = Depends(
         }
     }
     
-@user.put("/api/user/update/{user_id}")  
+@user.put("/api/user/update/{user_id}/")  
 async def create_user(
     user_id: int,
     request: Request,
@@ -467,7 +467,6 @@ async def create_user(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"El email {email} ya se encuentra en uso")
         #insertando data 
         if image is not None:
-          
             if image.filename != '':
                 try:
                     if image.content_type not in ["image/jpeg", "image/jpg", "image/png"]:

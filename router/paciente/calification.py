@@ -23,7 +23,7 @@ from sqlalchemy.exc import IntegrityError
 
 qualify = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-@qualify.get("/api/user/qualifydoc/")
+@qualify.get("/api/user/qualify-doc/")
 async def calification_doctor(doc_id: int, request: Request, current_user = Depends(get_current_user)):
     with engine.connect() as conn: 
         doctor = conn.execute(users.select().
@@ -60,7 +60,7 @@ async def calification_doctor(doc_id: int, request: Request, current_user = Depe
         "url_img_profile": None
     }        
     
-@qualify.post("/api/user/createqualy/")
+@qualify.post("/api/user/create-qualy/")
 async def create_calification(doc_id: int, stars: StarsDoctor = Form(...), notes: str = Form(None), experiece: ExperienceDoctor = Form(...), current_user: str = Depends(get_current_user)):
     with engine.connect() as conn: 
         doctor = conn.execute(users.select().where(users.c.id==doc_id)).first()

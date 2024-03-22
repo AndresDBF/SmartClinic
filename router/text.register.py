@@ -45,7 +45,7 @@ def send_verification_email(email, user_id):
         server.send_message(message)
 
     
-@test.get("/api/verify/{user_id}")
+@test.get("/api/verify/{user_id}/")
 async def verify_account(user_id: int):
     try:
         with engine.connect() as conn:

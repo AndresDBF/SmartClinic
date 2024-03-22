@@ -34,7 +34,7 @@ img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img',
 
 uverify.mount("/img", StaticFiles(directory=img_directory), name="img")
 
-@uverify.get("/admin/veri/user")
+@uverify.get("/admin/veri-user/")
 async def list_user_verify(request: Request, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user_notif = conn.execute(select(users.c.id,user_roles.c.role_id).
@@ -145,7 +145,7 @@ async def list_user_verify(request: Request, current_user: str = Depends(get_cur
     return data_list
 
     
-@uverify.put("/admin/veri/user/{user_id}")
+@uverify.put("/admin/veri-user/{user_id}/")
 async def verify_user(user_id: int, current_user: str = Depends(get_current_user)):
 
     with engine.connect() as conn:
@@ -176,7 +176,7 @@ async def verify_user(user_id: int, current_user: str = Depends(get_current_user
         #updated_role = conn.execute(roles.select().where(roles.c.role_id == rol_id)).first()          
     return Response(content="Se ha verificado la identidad del Usuario", status_code=status.HTTP_200_OK)
         
-@uverify.delete("/admin/decli/user/{user_id}")
+@uverify.delete("/admin/decli-user/{user_id}/")
 async def decline_user(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
@@ -224,7 +224,7 @@ async def decline_user(request: Request, user_id: int, current_user: str = Depen
                     }, status_code=status.HTTP_404_NOT_FOUND)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se han encontrado archivos del usuario para declinar")
         
-@uverify.delete("/admin/request/user/{user_id}")
+@uverify.delete("/admin/request-user/{user_id}/")
 async def decline_user(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()

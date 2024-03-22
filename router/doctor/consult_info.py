@@ -22,17 +22,21 @@ from router.roles.user_roles import verify_rol
 doctconsult = APIRouter(tags=["Doctor consult info"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 
-@doctconsult.get("/doctor/info/consult/")
+@doctconsult.get("/doctor/info-consult/")
 async def info_medic_consult(doc_id: int, patient_id: str, request: Request):
     with engine.connect() as conn:
         inf_med = conn.execute(inf_medic.select().where(inf_medic.c.doc_id==doc_id).where(inf_medic.c.user_id==patient_id)).first()
+        print(inf_med)
+        if inf_med is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontro ningun informe medico")
         doctor = conn.execute(select(users.c.name,
                                      users.c.last_name,
                                      experience_doctor.c.name_exper)
                               .select_from(users).where(users.c.id==doc_id)).first()
         img_profile = conn.execute(user_image_profile.select().where(user_image_profile.c.user_id==doc_id)).first()    
         
-        files = conn.execute(files_medical_exam_pat.select().where(files_medical_exam_pat.c.user_id==doc_id)).fetchall()
+        files = conn.execute(files_medical_exam_pat.select().where(files_medical_exam_pat.c.exam_id==inf_med.exam_id)).fetchall()
+        
         antecedent =  conn.execute(select( person_antecedent.c.hypertension,
                                             person_antecedent.c.diabetes,
                                             person_antecedent.c.asthma, 
@@ -71,24 +75,36 @@ async def info_medic_consult(doc_id: int, patient_id: str, request: Request):
                                                      join(family_antecedent, users.c.id == family_antecedent.c.user_id))
                                         .where(users.c.id==patient_id)).first()
         antec_habit = conn.execute(select(personal_habit.c.consumed).select_from(personal_habit).where(personal_habit.c.user_id==patient_id)).fetchall()
+    data_files = []
     if files is not None:
-        data_files = []
         for file in files:
             file_doc = file.pdf_exam_original[-4:]
             
-            file_path_image = f"./img/patient/{file.image_exam}.png"
-            if file_doc == ".pdf":
-                file_path_doc = f"./img/patient/{file.pdf_exam}.pdf"
-            else:
-                file_path_doc = f"./img/patient/{file.pdf_exam}.pdf"
-            #terminar aqui 
-            if not os.path.exists(file_path):
-                return {"error": "El archivo no existe"}
-                
-            image = FileResponse(file_path)
-                
-            base_url = str(request.base_url)
-            image_url = f"{base_url.rstrip('/')}/img/profile/{img_profile.image_profile}.png"
+            if file.image_exam_original is not None:
+                file_path_image = f"./img/patient/{file.image_exam}.png"
+                if not os.path.exists(file_path_image):
+                    return {"error": "la imagen del examen no existe en el sistema de archivos"}
+                image = FileResponse(file_path_image)
+                base_url = str(request.base_url)
+                image_url = f"{base_url.rstrip('/')}/img/profile/{file.image_exam}.png"
+                data_files.append({"url_image": image_url})
+            if file.pdf_exam_original is not None:
+                print("entra en el segundo if, este es la data: ", file.pdf_exam_original)
+                if file_doc == ".pdf":
+                    print("entra en el de pdf: ", file.pdf_exam)
+                    file_path_doc = f"./img/patient/{file.pdf_exam}.pdf"
+                else:
+                    print("entra en el de docx: ", file.pdf_exam)
+                    file_path_doc = f"./img/patient/{file.pdf_exam}.docx"
+                if not os.path.exists(file_path_doc):
+                    return {"error": "El archivo no existe en el sistema de archivos"}
+                image = FileResponse(file_path_doc)
+                base_url = str(request.base_url)
+                if file_doc == ".pdf":
+                    file_url = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}.pdf"
+                else:
+                    file_url = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}.docx"
+                data_files.append({"url_document": file_url})
     if img_profile is not None:
         file_path = f"./img/profile/{img_profile.image_profile}.png"
         if not os.path.exists(file_path):
@@ -125,6 +141,7 @@ async def info_medic_consult(doc_id: int, patient_id: str, request: Request):
                 "disease_mother_text": antecedent[13],
                 "disease_father_text": antecedent[14]
             },
+            "links_documents": data_files,
             "medic": {
                 "name": doctor[0],
                 "last_name": doctor[1],
@@ -166,6 +183,7 @@ async def info_medic_consult(doc_id: int, patient_id: str, request: Request):
             "disease_mother_text": antecedent[13],
             "disease_father_text": antecedent[14]
         },
+        "links_documents": data_files,
         "medic": {
             "name": doctor[0],
             "last_name": doctor[1],
@@ -174,4 +192,4 @@ async def info_medic_consult(doc_id: int, patient_id: str, request: Request):
         "image_profile_doctor": None
     }
 
-    return antecedent_patient
+    return antecedent_patient 

@@ -28,7 +28,7 @@ from datetime import datetime
 
 routeantec = APIRouter(tags=["Antecedents"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-@routeantec.get("/api/myantecedents/")
+@routeantec.get("/api/my-antecedents/")
 async def user_antecedent(user_id: int,  current_user: str = Depends(get_current_user)):
     ver_user = await verify_rol(user_id)
     if ver_user["role_id"] == 3:
@@ -90,7 +90,7 @@ async def user_antecedent(user_id: int,  current_user: str = Depends(get_current
         ]
     return list_antecedent
 
-@routeantec.get("/api/newantecedent/")
+@routeantec.get("/api/new-antecedent/")
 async def new_antecedent(user_id: int,  current_user: str = Depends(get_current_user)):
     ver_user = await verify_rol(user_id)
     if ver_user["role_id"] == 3:
@@ -101,9 +101,7 @@ async def new_antecedent(user_id: int,  current_user: str = Depends(get_current_
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el Usuario")
     return user[0]
 
-
-
-@routeantec.post("/api/createantec/", response_model=Antecedent)
+@routeantec.post("/api/create-antecedent/", response_model=Antecedent)
 async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_per_habit: List[PersonalHobbieSchema], data_fam_antec: FamilyAntecedentSchema,  current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         new_data_per_antec = data_per_antec.dict()

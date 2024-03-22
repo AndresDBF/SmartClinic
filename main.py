@@ -76,6 +76,7 @@ app.include_router(qualify)
 
 
 #admin
+app.include_router(luser)
 app.include_router(uverify)
 app.include_router(routerol)
 app.include_router(routeuserrol)

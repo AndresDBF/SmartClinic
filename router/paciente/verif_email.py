@@ -23,7 +23,7 @@ email.mount("/static", StaticFiles(directory="static"), name="static")
 
 templates = Jinja2Templates(directory="templates")
     
-@email.get("/api/verify/{user_id}", response_class=HTMLResponse)
+@email.get("/api/user/verify/{user_id}/", response_class=HTMLResponse)
 async def verify_account(user_id: int, request: Request):
     print("entra en verificacion")
     print(user_id)
@@ -42,7 +42,7 @@ async def verify_account(user_id: int, request: Request):
     except IntegrityError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Error al verificar la cuenta.")
 
-@email.get("/api/user/veriaccount/{user_id}")
+@email.get("/api/user/verify-account/{user_id}/")
 async def veri_email_ident(user_id: int,  current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id == user_id)).first()
