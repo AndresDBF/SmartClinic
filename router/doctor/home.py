@@ -1,8 +1,8 @@
 import os
 from fastapi import APIRouter, Request, HTTPException, status, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import select, func, or_, and_, between
 
 from config.db import engine
 from model.user import users
@@ -18,26 +18,18 @@ from typing import Optional
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
-# Obtener la ruta absoluta del directorio raíz del proyecto
+
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-
 doctorhome = APIRouter(tags=["Doctor Home"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
-
-# Definir la ruta absoluta de la carpeta de imágenes estáticas
 img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img', 'profile'))
-
-# Montar la carpeta de imágenes estáticas
 doctorhome.mount("/img", StaticFiles(directory=img_directory), name="img")
 
 #created_at, "%d/%m/%Y"
-from datetime import datetime, timedelta
-
-
-@doctorhome.get("/doctor/home-case/{userid}/")
-async def user_home(userid: int, request: Request, search_case: Optional[str] = None, search_type: Optional[str] = None, current_user: str = Depends(get_current_user)):
+@doctorhome.get("/doctor/home-case/{doc_id}/")
+async def user_home(doc_id: int, request: Request, search_case: Optional[str] = None, search_type: Optional[str] = None, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
-        user =  conn.execute(users.select().where(users.c.id == userid)).first()
-        veri_user =  conn.execute(users.select().where(users.c.id == userid).where(users.c.disabled==True).where(users.c.verify_ident==True)).first()
+        user =  conn.execute(users.select().where(users.c.id == doc_id)).first()
+        veri_user =  conn.execute(users.select().where(users.c.id == doc_id).where(users.c.disabled==True).where(users.c.verify_ident==True)).first()
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
         if veri_user is None:
@@ -73,7 +65,7 @@ async def user_home(userid: int, request: Request, search_case: Optional[str] = 
                                             users.c.name.like(f'%{search_case}%'),
                                             users.c.last_name.like(f'%{search_case}%')
                                     ))
-                                    .where(inf_medic.c.doc_id == userid)
+                                    .where(inf_medic.c.doc_id == doc_id)
                                     .where(inf_medic.c.created_at >= monday_midnight)
                                     .where(inf_medic.c.created_at <= datetime.now())).fetchall()
                
@@ -261,33 +253,62 @@ async def user_home(userid: int, request: Request, search_case: Optional[str] = 
         data_case.append(full_case)
     return data_case
 
-@doctorhome.get("/doctor/home-dashboard/{user_id}/")
-async def dashboard_home_doctor(user_id: int):
+@doctorhome.get("/doctor/home-dashboard/{doc_id}/")
+async def dashboard_home_doctor(doc_id: int):
     #obtener lunes de la semana actual
-    monday = today - timedelta(days=datetime.now().date().weekday())
+    monday = datetime.now() - timedelta(days=datetime.now().date().weekday())
     monday_midnight = datetime.combine(monday, datetime.min.time())
-    
-    
-    # Obtener la fecha y hora actual
+   
+    # Obtener la fecha y hora del viernes pasado
     current_date = datetime.now()
-    # Restar una semana (7 días) a la fecha actual
     last_week_date = current_date - timedelta(days=current_date.weekday(), weeks=1)
-    # Encontrar el viernes de la semana pasada (el día 4 corresponde al viernes en la convención ISO)
     last_friday = last_week_date + timedelta(days=4)
-    # Establecer la hora a las 23:59 (11:59 pm)
     last_friday_at_2359 = datetime.combine(last_friday, datetime.max.time())
-
-    print("Fecha del viernes pasado:", last_friday)
 
     #obtener lunes de la semana pasada
     current_date = datetime.now()
     last_week_date = current_date - timedelta(days=current_date.weekday(), weeks=1)
     last_monday = last_week_date - timedelta(days=last_week_date.weekday())
     last_monday_midnight = datetime.combine(last_monday, datetime.min.time())
-    print(last_friday)
-    print(last_monday_midnight)
-    print(monday_midnight)
+    
     with engine.connect() as conn:
-        patient_data = conn.execute(inf_medic.select().where(inf_medic.c.doc_id==user_id)).fetchall()
+        pat_data_last_week = len(conn.execute(inf_medic.select()
+                                         .where(inf_medic.c.doc_id==doc_id)
+                                         .where(inf_medic.c.created_at.between(last_monday_midnight, last_friday_at_2359))).fetchall())
+        pat_data_this_week = len(conn.execute(inf_medic.select()
+                                         .where(inf_medic.c.doc_id==doc_id)
+                                         .where(inf_medic.c.created_at.between(monday_midnight, datetime.now()))).fetchall())
+        pat_data_total = len(conn.execute(inf_medic.select()
+                                         .where(inf_medic.c.doc_id==doc_id)).fetchall())
+       
+        
+        pat_exam_last_week = len(conn.execute(inf_medic.select()
+                                              .join(medical_exam, inf_medic.c.exam_id == medical_exam.c.id)
+                                              .where(inf_medic.c.doc_id==doc_id)
+                                              .where(medical_exam.c.done == 1)
+                                              .where(inf_medic.c.created_at.between(monday_midnight, last_friday_at_2359))).fetchall())
+        pat_exam_this_week = len(conn.execute(inf_medic.select()
+                                              .join(medical_exam, inf_medic.c.exam_id == medical_exam.c.id)
+                                              .where(inf_medic.c.doc_id==doc_id)
+                                              .where(medical_exam.c.done == 1)
+                                              .where(inf_medic.c.created_at.between(monday_midnight, datetime.now()))).fetchall())
+        pat_exam_total= len(conn.execute(inf_medic.select()
+                                              .join(medical_exam, inf_medic.c.exam_id == medical_exam.c.id)
+                                              .where(inf_medic.c.doc_id==doc_id)
+                                              .where(medical_exam.c.done == 1)).fetchall())
+        
+        return JSONResponse(content={
+            "number_patients":{
+                "last_week": pat_data_last_week,
+                "this_week": pat_data_this_week,
+                "total": pat_data_total
+            },
+            "number_exams":{
+                "last_week": pat_exam_last_week,
+                "this_week": pat_exam_this_week,
+                "total": pat_exam_total
+            }
+        }, status_code=status.HTTP_200_OK)
+        
         
         

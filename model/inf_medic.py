@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Table, ForeignKey
-from sqlalchemy.sql.sqltypes import String, Integer, Boolean, DateTime, Numeric, TIMESTAMP
+from sqlalchemy.sql.sqltypes import String, Integer, Boolean, DateTime, Numeric, TIMESTAMP, Date
 from sqlalchemy.sql.functions import func
 from config.db import engine, meta_data
 
@@ -14,8 +14,9 @@ inf_medic = Table("inf_medic",meta_data,
                    Column("disease", String(191), nullable=False),
                    Column("imp_diag", String(191), nullable=False),
                    Column("medication", String(191), nullable=False),
+                   Column("next_consult", Date, nullable=False),
                    Column("finished", Boolean, nullable=False, default=False),
-                   Column("created_at", TIMESTAMP, nullable=True)
+                   Column("created_at", TIMESTAMP, nullable=False)
 )
 
 

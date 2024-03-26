@@ -19,12 +19,16 @@ from model.person_habit import personal_habit
 from model.family_antecedent import family_antecedent
 from model.inf_medic import inf_medic
 from model.diagnostic import diagnostic
+from model.medical_exam import medical_exam
 
 from sqlalchemy import select, insert, func
 from sqlalchemy.sql import select
 
 from router.logout import get_current_user
 from router.roles.user_roles import verify_rol
+
+from datetime import date
+
 
 routeim = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
@@ -167,11 +171,16 @@ async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper:
         }
     return result
 
-#modificar la optimizacion de este endpoint
+
 @routeim.post("/doctor/infomedic-create/")
-async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, idatent: str, infcase: str = Form(...), disease_act: str = Form(...), impre_diag: str = Form(...), medication_ind: str = Form(...), current_user: str = Depends(get_current_user)):
-    print(idatent)
+async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, idatent: str, infcase: str = Form(...),
+                           disease_act: str = Form(...), impre_diag: str = Form(...), medication_ind: str = Form(...),
+                           next_consult: date = Form(...),  current_user: str = Depends(get_current_user)):
+
     with engine.connect() as conn:
+        ver_exam = conn.execute(medical_exam.select().where(medical_exam.c.id==id_exam)).first()
+        if ver_exam is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha conseguido el examen especificado")
         conn.execute(inf_medic.insert().values(doc_id=docid,
                                                user_id=userid,
                                                ante_id=id_ant,
@@ -180,7 +189,8 @@ async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, i
                                                case= infcase,
                                                disease=disease_act,
                                                imp_diag=impre_diag,
-                                               medication=medication_ind))
+                                               medication=medication_ind,
+                                               next_consult = next_consult))
         conn.commit()
     return JSONResponse(content={
         "saved": True,
