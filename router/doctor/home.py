@@ -11,7 +11,7 @@ from model.medical_exam import medical_exam
 from model.inf_medic import inf_medic
 
 from router.logout import get_current_user
-from router.roles.user_roles import verify_rol
+from router.roles.roles import verify_rol_doctor
 
 from typing import Optional
 
@@ -27,6 +27,7 @@ doctorhome.mount("/img", StaticFiles(directory=img_directory), name="img")
 #created_at, "%d/%m/%Y"
 @doctorhome.get("/doctor/home-case/{doc_id}/")
 async def user_home(doc_id: int, request: Request, search_case: Optional[str] = None, search_type: Optional[str] = None, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         user =  conn.execute(users.select().where(users.c.id == doc_id)).first()
         veri_user =  conn.execute(users.select().where(users.c.id == doc_id).where(users.c.disabled==True).where(users.c.verify_ident==True)).first()
@@ -254,7 +255,8 @@ async def user_home(doc_id: int, request: Request, search_case: Optional[str] = 
     return data_case
 
 @doctorhome.get("/doctor/home-dashboard/{doc_id}/")
-async def dashboard_home_doctor(doc_id: int):
+async def dashboard_home_doctor(doc_id: int, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     #obtener lunes de la semana actual
     monday = datetime.now() - timedelta(days=datetime.now().date().weekday())
     monday_midnight = datetime.combine(monday, datetime.min.time())

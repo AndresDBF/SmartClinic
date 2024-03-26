@@ -14,7 +14,7 @@ from model.person_habit import personal_habit
 from model.family_antecedent import family_antecedent
 
 from router.logout import get_current_user
-from router.roles.user_roles import verify_rol
+from router.roles.roles import verify_rol_patient
 
 from schema.antecedent_schema import AntecedentSchema, PersonalHobbieSchema, FamilyAntecedentSchema, Antecedent
 
@@ -30,11 +30,7 @@ routeantec = APIRouter(tags=["Antecedents"], responses={status.HTTP_404_NOT_FOUN
 
 @routeantec.get("/api/my-antecedents/")
 async def user_antecedent(user_id: int,  current_user: str = Depends(get_current_user)):
-    ver_user = await verify_rol(user_id)
-    if ver_user["role_id"] == 3:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
-
-
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         per_ant = conn.execute(
             person_antecedent.select()
@@ -92,9 +88,7 @@ async def user_antecedent(user_id: int,  current_user: str = Depends(get_current
 
 @routeantec.get("/api/new-antecedent/")
 async def new_antecedent(user_id: int,  current_user: str = Depends(get_current_user)):
-    ver_user = await verify_rol(user_id)
-    if ver_user["role_id"] == 3:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
+    verify_rol_patient(current_user)
     with engine.connect() as conn: 
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         if user is None: 
@@ -103,6 +97,7 @@ async def new_antecedent(user_id: int,  current_user: str = Depends(get_current_
 
 @routeantec.post("/api/create-antecedent/", response_model=Antecedent)
 async def create_antecedent(userid: int, data_per_antec: AntecedentSchema, data_per_habit: List[PersonalHobbieSchema], data_fam_antec: FamilyAntecedentSchema,  current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         new_data_per_antec = data_per_antec.dict()
         new_data_fam_antec = data_fam_antec.dict()

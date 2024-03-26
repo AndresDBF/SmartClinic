@@ -12,6 +12,7 @@ from model.roles.user_roles import user_roles
 from model.calification import calification_doc
 
 from router.logout import get_current_user
+from router.roles.roles import verify_rol_patient
 
 from schema.calification import StarsDoctor, ExperienceDoctor
 
@@ -25,6 +26,7 @@ qualify = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"mess
 
 @qualify.get("/api/user/qualify-doc/")
 async def calification_doctor(doc_id: int, request: Request, current_user = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn: 
         doctor = conn.execute(users.select().
                               join(user_roles, users.c.id==user_roles.c.user_id).
@@ -62,6 +64,7 @@ async def calification_doctor(doc_id: int, request: Request, current_user = Depe
     
 @qualify.post("/api/user/create-qualy/")
 async def create_calification(doc_id: int, stars: StarsDoctor = Form(...), notes: str = Form(None), experiece: ExperienceDoctor = Form(...), current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn: 
         doctor = conn.execute(users.select().where(users.c.id==doc_id)).first()
         if doctor is None:

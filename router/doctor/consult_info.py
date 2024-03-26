@@ -15,7 +15,7 @@ from model.family_antecedent import family_antecedent
 from model.inf_medic import inf_medic
 
 from router.logout import get_current_user
-from router.roles.user_roles import verify_rol
+from router.roles.roles import verify_rol_doctor
 
 
 
@@ -23,7 +23,8 @@ doctconsult = APIRouter(tags=["Doctor consult info"], responses={status.HTTP_404
 
 
 @doctconsult.get("/doctor/info-consult/")
-async def info_medic_consult(doc_id: int, patient_id: str, request: Request):
+async def info_medic_consult(doc_id: int, patient_id: str, request: Request, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         inf_med = conn.execute(inf_medic.select().where(inf_medic.c.doc_id==doc_id).where(inf_medic.c.user_id==patient_id)).first()
         print(inf_med)

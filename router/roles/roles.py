@@ -3,6 +3,7 @@ from config.db import engine
 from model.roles.roles import roles
 from model.lval import lval
 from model.user import users
+from model.roles.user_roles import user_roles
 from router.paciente.user import authenticate_user, create_token, oauth2_scheme, user
 from schema.rules.rules import Role
 from sqlalchemy import insert, select, update, delete, join
@@ -70,6 +71,44 @@ def verify_data(role: str):
         """  if query_username is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="no se ha encontrado el usuario") """
         return True
+    
+def verify_rol_admin(data: str):
+    with engine.connect() as conn:
+        ver_user = conn.execute(select(user_roles.c.role_id).
+                                select_from(user_roles).
+                                join(users, user_roles.c.user_id == users.c.id).where(users.c.email==data)).first()
+        print(ver_user[0])
+    if ver_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
+    if ver_user[0] != 1:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized Role")
+    else:
+        return True
+    
+def verify_rol_patient(data: str):
+    with engine.connect() as conn:
+        ver_user = conn.execute(select(user_roles.c.role_id).
+                                select_from(user_roles).
+                                join(users, user_roles.c.user_id == users.c.id).where(users.c.email==data)).first()
+    if ver_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
+    if ver_user[0] != 2:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized Role")
+    else:
+        return True
+    
+def verify_rol_doctor(data: str):
+    with engine.connect() as conn:
+        ver_user = conn.execute(select(user_roles.c.role_id).
+                                select_from(user_roles).
+                                join(users, user_roles.c.user_id == users.c.id).where(users.c.email==data)).first()
+    if ver_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
+    if ver_user[0] != 3:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized Role")
+    else:
+        return True
+        
 
 @routerol.post("/admin/roles/create")
 async def create_rule(role: str = Form(...)):

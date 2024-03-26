@@ -18,7 +18,7 @@ from model.medical_exam import medical_exam
 from model.roles.user_roles import user_roles
 
 from router.logout import get_current_user
-from router.roles.user_roles import verify_rol
+from router.roles.roles import verify_rol_patient
 
 from jose import jwt, JWTError
 
@@ -28,10 +28,9 @@ from datetime import datetime
 
 userexam = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
-
-
 @userexam.get("/api/user/my-exam-pend/")
 async def list_user_exam(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         exams = conn.execute(
         select(
@@ -107,6 +106,7 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
 
 @userexam.get("/api/user/my-exam/")
 async def list_user_exam(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         exams = conn.execute(
             select(
@@ -178,6 +178,7 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
 
 @userexam.post("/api/user/update-exam/", status_code=status.HTTP_201_CREATED)
 async def update_exam(exam_id: int, request: Request, files: List[UploadFile] = File(None), photos: List[UploadFile] = File(None),  current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     try:
         data_files = []
         url_iamges = []
@@ -308,38 +309,3 @@ async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
     except IntegrityError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe") from e
             
-""" 
-
-#para descargar, se guardara esta ruta para otra ocasion 
-@userexam.get("/api/user/download-exam/")
-async def download_file(filename: str):
-    file_path = f"./img/patient/{filename}"
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El archivo no existe")
-    return FileResponse(file_path)
- """
-""" @userexam.delete("/api/user/delete_exam/")
-async def delete_file(filename: str):    
-    file_path = f"./img/patient/{filename}"
-    if os.path.exists(file_path):
-        os.remove(file_path)
-    else:
-        raise HTTPException(status_code=404, detail="El archivo no existe")
-    # También elimina el registro de la base de datos
-    with engine.connect() as conn:
-        ver_file = conn.execute(select(files_medical_exam_pat.c.pdf_exam_original, files_medical_exam_pat.c.pdf_exam).select_from(files_medical_exam_pat).
-                                where(files_medical_exam_pat.c.pdf_exam_original.like(f'%{filename}%')))
-        ver_file_img = conn.execute(select(files_medical_exam_pat.c.image_exam_original, files_medical_exam_pat.c.pdf_exam).select_from(files_medical_exam_pat)
-                                    .where(files_medical_exam_pat.c.image_exam_original.like(f'%{filename}%')))
-        
-        if ver_file is not None:
-            print("entra en el primer if")
-            conn.execute(files_medical_exam_pat.update().where(files_medical_exam_pat.c.pdf_exam_original.like(f'%{filename}%')).
-                         values(pdf_exam_original=None, pdf_exam=None))
-            conn.commit()
-        if ver_file_img is not None:
-            conn.execute(files_medical_exam_pat.update().where(files_medical_exam_pat.c.image_exam_original.like(f'%{filename}%')).
-                         values(image_exam_original=None, image_exam=None))
-            conn.commit()
-        if ver_file
-    return JSONResponse(content={"removed": True, "message": "Archivo Eliminado correctamente"}, status_code=status.HTTP_204_NO_CONTENT) """

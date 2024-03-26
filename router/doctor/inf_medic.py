@@ -25,7 +25,7 @@ from sqlalchemy import select, insert, func
 from sqlalchemy.sql import select
 
 from router.logout import get_current_user
-from router.roles.user_roles import verify_rol
+from router.roles.roles import verify_rol_doctor
 
 from datetime import date
 
@@ -36,6 +36,7 @@ routeim = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_F
 #optimizar las consultas de este endpoint
 @routeim.get("/doctor/videocall-user/")
 async def get_info_user(patient_id: int, request: Request, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         user =  conn.execute(users.select().where(users.c.id == patient_id)).first()
         if user is None:
@@ -108,6 +109,7 @@ async def get_info_user(patient_id: int, request: Request, current_user: str = D
 #optimizar las consultas de este endpoint      
 @routeim.get("/doctor/infomedic/")
 async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper: int, id_atent= str, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         per_ant = conn.execute(
             select(
@@ -171,12 +173,11 @@ async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper:
         }
     return result
 
-
 @routeim.post("/doctor/infomedic-create/")
 async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, idatent: str, infcase: str = Form(...),
                            disease_act: str = Form(...), impre_diag: str = Form(...), medication_ind: str = Form(...),
                            next_consult: date = Form(...),  current_user: str = Depends(get_current_user)):
-
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         ver_exam = conn.execute(medical_exam.select().where(medical_exam.c.id==id_exam)).first()
         if ver_exam is None:
@@ -199,6 +200,7 @@ async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, i
         
 @routeim.delete("/doctor/infmedic-delete/{diag_id}/")
 async def delete_diagnostic(diag_id: int, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         conn.execute(diagnostic.delete().where(diagnostic.c.id == diag_id))
         conn.commit()

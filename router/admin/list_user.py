@@ -14,6 +14,7 @@ from model.images.user_image_profile import user_image_profile
 from model.images.user_image_profile import user_image_profile
 
 from router.logout import get_current_user
+from router.roles.roles import verify_rol_admin
 
 
 from sqlalchemy import insert, select, func, or_, and_
@@ -42,6 +43,8 @@ luser.mount("/img", StaticFiles(directory=img_directory), name="img")
 
 @luser.get("/admin/list-users/")
 async def list_users(request: Request, current_user: str = Depends(get_current_user), search_query: Optional[str] = None):
+    verify_rol_admin(current_user)
+        
     with engine.connect() as conn:
         if search_query:  # Si hay una cadena de búsqueda
             

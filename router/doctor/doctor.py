@@ -23,12 +23,12 @@ from sqlalchemy import select, insert, func
 from sqlalchemy.sql import select
 
 from router.paciente.home import get_current_user
-from router.roles.user_roles import verify_rol
-
+from router.roles.roles import verify_rol_doctor
 routedoc = APIRouter(tags=["Video Call Doctor"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @routedoc.get("/doctor/list-docs/")
 async def get_doctors(current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         data_doctors = conn.execute(users.select().
                                     join(user_roles, users.c.id == user_roles.c.user_id).
@@ -62,6 +62,7 @@ async def get_doctors(current_user: str = Depends(get_current_user)):
 
 @routedoc.get("/doctor/assign-doc/")
 async def assign_doctor(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         veri_user = conn.execute(users.select().where(users.c.id==user_id)).first()
         if veri_user is None:

@@ -7,6 +7,7 @@ from model.tip_consult import tip_consult
 from model.patient_consult import patient_consult
 
 from router.logout import get_current_user
+from router.roles.roles import verify_rol_patient
 
 from datetime import datetime
 
@@ -17,6 +18,7 @@ routetipco = APIRouter(tags=["Tip Consult"], responses={status.HTTP_404_NOT_FOUN
 
 @routetipco.get("/api/user/tip-consult-medic/")
 async def get_tip_consult(user_id: int, current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         ext_tip_consult = conn.execute(tip_consult.select()).fetchall()
         if ext_tip_consult:
@@ -51,6 +53,7 @@ async def get_tip_consult(user_id: int, current_user: str = Depends(get_current_
 
 @routetipco.post("/api/user/consult/{userid}/{consultid}/")
 async def create_consult(userid: int, consultid: int, current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         last_pat_con_id = conn.execute(select(func.max(patient_consult.c.id))).scalar()
         if last_pat_con_id is not None:
@@ -69,6 +72,7 @@ async def create_consult(userid: int, consultid: int, current_user: str = Depend
     
 @routetipco.delete("/api/user/del-consult/{consult_id}/")
 async def delete_pat_consult(consult_id: int, current_user: str = Depends(get_current_user)):
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         query = conn.execute(patient_consult.delete().where(patient_consult.c.id == consult_id))       
         conn.commit()

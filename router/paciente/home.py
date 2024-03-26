@@ -10,7 +10,7 @@ from model.images.user_image_profile import user_image_profile
 from model.roles.user_roles import user_roles
 
 from router.logout import get_current_user
-from router.roles.user_roles import verify_rol
+from router.roles.roles import verify_rol_patient
 
 
 # Obtener la ruta absoluta del directorio raíz del proyecto
@@ -26,6 +26,7 @@ patienthome.mount("/img", StaticFiles(directory=img_directory), name="img")
 
 @patienthome.get("/api/home/{userid}")
 async def user_home(userid: int, request: Request, current_user: str = Depends(get_current_user)):    
+    verify_rol_patient(current_user)
     with engine.connect() as conn:
         user =  conn.execute(users.select().where(users.c.id == userid)).first()
         if user is None:

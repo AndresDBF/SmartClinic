@@ -5,16 +5,12 @@ from fastapi.staticfiles import StaticFiles
 
 from config.db import engine
 
-from model.tip_consult import tip_consult
-from model.patient_consult import patient_consult
 from model.user import users
 from model.medical_exam import medical_exam
 from model.images.files_medical_exam_doc import files_medical_exam_doc
 
 from router.logout import get_current_user
-from router.roles.user_roles import verify_rol
-
-from schema.medic_exam import MedicExamSchema
+from router.roles.roles import verify_rol_doctor
 
 from sqlalchemy import select, insert, func
 from sqlalchemy.exc import IntegrityError
@@ -25,9 +21,7 @@ exam = APIRouter(tags=["Medical Exam"], responses={status.HTTP_404_NOT_FOUND: {"
 
 @exam.get("/doctor/new-medical-exam/", tags=["Video Call Doctor"])
 async def new_medic_exam(user_id: int, current_user: str = Depends(get_current_user)):
-    ver_user = await verify_rol(user_id)
-    if ver_user["role_id"] == 2:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized User")
+    verify_rol_doctor(current_user)
     with engine.connect() as conn: 
         user = conn.execute(
             select(users.c.id).
@@ -136,8 +130,7 @@ async def insert_file_exam(id_exam: int, request: Request, files: List[UploadFil
 
 @exam.post("/doctor/create-medical-exam/", tags=["Video Call Doctor"])
 async def create_medic_exam(patient_id: int, request: Request,  file_docu: List[UploadFile] = File(None), image: List[UploadFile] = File(None),  current_user: str = Depends(get_current_user)):
-    print(file_docu)
-    print(image)
+    verify_rol_doctor(current_user)
     with engine.connect() as conn:
         insert_exam = conn.execute(medical_exam.insert().values(user_id=patient_id, created_at=func.now()))
         conn.commit()
@@ -184,34 +177,3 @@ async def create_medic_exam(patient_id: int, request: Request,  file_docu: List[
         # Si no se proporcionan ni imágenes ni documentos, devuelve un mensaje de error
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Debes proporcionar al menos un archivo o imagen.")
      
-    
-    
-    
-""" 
-[
-  {
-    "id": 11,
-    "done": false,
-    
-    "files":[
-        "file":
-        {
-            "file": "La factibilidad de un proyecto.docx",
-            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
-            
-        },
-        {
-            "file": "La factibilidad de un proyecto.docx",
-            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
-        },
-        {
-            "file": "La factibilidad de un proyecto.docx",
-            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
-        },
-        {
-            "file": "La factibilidad de un proyecto.docx",
-            "url_file": "http://127.0.0.1:8000/img/medic/64db88e8263dec37d344bf10cf7786fc7d7eccdbc0d567f086222f95b250b61c.docx",
-        }
-    ],
-  }
-] """

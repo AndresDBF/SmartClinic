@@ -17,6 +17,7 @@ from model.lval import lval
 from model.roles.user_roles import user_roles
 
 from router.logout import get_current_user
+from router.roles.roles import verify_rol_admin
 
 
 from sqlalchemy import insert, select, func
@@ -36,6 +37,7 @@ uverify.mount("/img", StaticFiles(directory=img_directory), name="img")
 
 @uverify.get("/admin/veri-user/")
 async def list_user_verify(request: Request, current_user: str = Depends(get_current_user)):
+    verify_rol_admin(current_user)
     with engine.connect() as conn:
         user_notif = conn.execute(select(users.c.id,user_roles.c.role_id).
                                   select_from(users).
@@ -147,7 +149,7 @@ async def list_user_verify(request: Request, current_user: str = Depends(get_cur
     
 @uverify.put("/admin/veri-user/{user_id}/")
 async def verify_user(user_id: int, current_user: str = Depends(get_current_user)):
-
+    verify_rol_admin(current_user)
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         user_notif = conn.execute(select(users.c.id,user_roles.c.role_id).
@@ -178,6 +180,7 @@ async def verify_user(user_id: int, current_user: str = Depends(get_current_user
         
 @uverify.delete("/admin/decli-user/{user_id}/")
 async def decline_user(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
+    verify_rol_admin(current_user)
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         user_notif = conn.execute(select(users.c.id,user_roles.c.role_id).
@@ -226,6 +229,7 @@ async def decline_user(request: Request, user_id: int, current_user: str = Depen
         
 @uverify.delete("/admin/request-user/{user_id}/")
 async def decline_user(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
+    verify_rol_admin(current_user)
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         user_notif = conn.execute(select(users.c.id,user_roles.c.role_id).
