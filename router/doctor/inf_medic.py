@@ -176,7 +176,7 @@ async def get_inf_medic_patient(user_id: int, id_ant: int, id_hob: int, id_fper:
 @routeim.post("/doctor/infomedic-create/")
 async def create_inf_medic(userid: int, id_exam: int, docid: int, id_ant: int, idatent: str, infcase: str = Form(...),
                            disease_act: str = Form(...), impre_diag: str = Form(...), medication_ind: str = Form(...),
-                           next_consult: date = Form(...),  current_user: str = Depends(get_current_user)):
+                           next_consult: date = Form(..., description="Formato YYYY:MM:DD"),  current_user: str = Depends(get_current_user)):
     verify_rol_doctor(current_user)
     with engine.connect() as conn:
         ver_exam = conn.execute(medical_exam.select().where(medical_exam.c.id==id_exam)).first()

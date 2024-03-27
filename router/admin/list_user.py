@@ -31,7 +31,7 @@ security = HTTPBearer()
 # Obtener la ruta absoluta del directorio raíz del proyecto
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
     
-luser = APIRouter(tags=["Admin Verify User"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+luser = APIRouter(tags=["Admin Routes"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img', 'profile'))
 

@@ -7,6 +7,7 @@ from sqlalchemy import select, func, or_, and_, between
 from config.db import engine
 from model.user import users
 from model.images.user_image_profile import user_image_profile
+from model.experience_doctor import experience_doctor
 from model.medical_exam import medical_exam
 from model.inf_medic import inf_medic
 
@@ -24,7 +25,7 @@ doctorhome = APIRouter(tags=["Doctor Home"], responses={status.HTTP_404_NOT_FOUN
 img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img', 'profile'))
 doctorhome.mount("/img", StaticFiles(directory=img_directory), name="img")
 
-#created_at, "%d/%m/%Y"
+
 @doctorhome.get("/doctor/home-case/{doc_id}/")
 async def user_home(doc_id: int, request: Request, search_case: Optional[str] = None, search_type: Optional[str] = None, current_user: str = Depends(get_current_user)):
     verify_rol_doctor(current_user)
@@ -312,5 +313,73 @@ async def dashboard_home_doctor(doc_id: int, current_user: str = Depends(get_cur
             }
         }, status_code=status.HTTP_200_OK)
         
+@doctorhome.get("/doctor/home/{doc_id}/") 
+async def user_home(doc_id: int, request: Request, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
+    with engine.connect() as conn:
+        user =  conn.execute(users.select().where(users.c.id == doc_id)).first()
+        veri_user =  conn.execute(users.select().where(users.c.id == doc_id).where(users.c.disabled==True).where(users.c.verify_ident==True)).first()
+        exp_doc = conn.execute(select(experience_doctor.c.name_exper).select_from(experience_doctor)
+                               .where(experience_doctor.c.user_id==doc_id)).first()
+        if not exp_doc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado la especialidad del doctor")
         
+    
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
+        if veri_user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No se ha completado la verificacion del usuario")
+
+        button_online = conn.execute(select(experience_doctor.c.user_id).select_from(experience_doctor)
+                                     .where(experience_doctor.c.user_id == doc_id)).first()
         
+        image_row =  conn.execute(user_image_profile.select().where(user_image_profile.c.user_id == doc_id)).first()
+    if image_row is not None:
+        file_path = f"./img/profile/{image_row.image_profile}.png"
+        if not os.path.exists(file_path):
+            return {"error": "El archivo no existe"}
+            
+        image = FileResponse(file_path)
+            
+        base_url = str(request.base_url)
+        image_url = f"{base_url.rstrip('/')}/img/profile/{image_row.image_profile}.png"
+       
+        return  {
+            "doc_id": doc_id,
+            "especiality_doc": exp_doc[0],
+            "url_image_profile": image_url,
+            "button_online": button_online[0] 
+        }
+    
+   
+    return {
+        "doc_id": doc_id,
+        "especiality_doc": exp_doc[0],
+        "url_image_profile": None,
+        "button_online": button_online[0]
+    }
+
+
+#comentar al front sobre la posibilidad de eliminar todos los parametros user_id
+@doctorhome.post("/doctor/touch-online/")
+async def touch_button_online(doc_id: str, current_user: str = Depends(get_current_user)):
+    verify_rol_doctor(current_user)
+    with engine.connect() as conn:
+        ver_exp_doc = conn.execute(select(experience_doctor.c.online).select_from(experience_doctor)
+                                   .where(experience_doctor.c.user_id==doc_id)).first()
+        if ver_exp_doc is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado la especialidad del doctor")
+        if ver_exp_doc[0] == False:
+            conn.execute(experience_doctor.update().where(experience_doctor.c.user_id==doc_id).values(online=True))
+            conn.commit()
+        else:
+            conn.execute(experience_doctor.update().where(experience_doctor.c.user_id==doc_id).values(online=False))
+            conn.commit()
+        ver_exp_doc = conn.execute(select(experience_doctor.c.online).select_from(experience_doctor)
+                                   .where(experience_doctor.c.user_id==doc_id)).first()
+    return JSONResponse(content={
+                "doc_id": doc_id,
+                "button_online": ver_exp_doc[0]
+            }, status_code=status.HTTP_202_ACCEPTED)
+        
+    

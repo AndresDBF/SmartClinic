@@ -17,6 +17,12 @@ from sqlalchemy.exc import IntegrityError
 
 from typing import Optional
 
+
+from sse_starlette.sse import EventSourceResponse
+import uvicorn
+import time
+
+
 notify = APIRouter(tags=["Notifications"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 """ @notify.get("/user/notifications/")
@@ -45,7 +51,7 @@ async def get_list_notifications(user_id: int, skip: int = 0, limit: int = 25, c
         return list_notification """
 
     
-@notify.put("/user/update/notification/")
+""" @notify.put("/user/update/notification/")
 async def update_notifications(notif_id: int, current_user: str = Depends(get_current_user)):
     with engine.connect() as conn:
         conn.execute(notifications.update().
@@ -107,4 +113,27 @@ async def get_list_notifications(request: Request, user_id: int, page: Optional[
         "total": total_notifications,
     }
     
-    return data_noti
+    return data_noti """
+
+async def status_event_generator(request, param: str):
+    ctr = 1
+    while True:
+        if await request.is_disconnected():
+            print('client disconnected')
+            break
+        yield {
+                "event": "update",
+                "retry": 3000,
+                "data": f"{param}-{ctr}"
+            }
+        time.sleep(1)
+        ctr += 1
+
+
+@notify.get('/status/stream')
+async def run(
+        param: str,
+        request: Request
+):
+    event_generator = status_event_generator(request, param)
+    return EventSourceResponse(event_generator)

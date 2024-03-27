@@ -18,6 +18,7 @@ from model.roles.user_roles import user_roles
 
 from router.logout import get_current_user
 from router.roles.roles import verify_rol_admin
+from router.roles.user_roles import search_user
 
 
 from sqlalchemy import insert, select, func
@@ -28,7 +29,7 @@ from os import getcwd, remove
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
     
-uverify = APIRouter(tags=["Admin Verify User"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
+uverify = APIRouter(tags=["Admin Routes"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 img_directory = os.path.abspath(os.path.join(project_root, 'SmartClinic', 'img', 'profile'))
 
@@ -145,8 +146,7 @@ async def list_user_verify(request: Request, current_user: str = Depends(get_cur
             data_list.append(full_user_data)
 
     return data_list
-
-    
+  
 @uverify.put("/admin/veri-user/{user_id}/")
 async def verify_user(user_id: int, current_user: str = Depends(get_current_user)):
     verify_rol_admin(current_user)
@@ -179,8 +179,9 @@ async def verify_user(user_id: int, current_user: str = Depends(get_current_user
     return Response(content="Se ha verificado la identidad del Usuario", status_code=status.HTTP_200_OK)
         
 @uverify.delete("/admin/decli-user/{user_id}/")
-async def decline_user(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
+async def decline_user(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     verify_rol_admin(current_user)
+    
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         user_notif = conn.execute(select(users.c.id,user_roles.c.role_id).
@@ -228,8 +229,9 @@ async def decline_user(request: Request, user_id: int, current_user: str = Depen
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se han encontrado archivos del usuario para declinar")
         
 @uverify.delete("/admin/request-user/{user_id}/")
-async def decline_user(request: Request, user_id: int, current_user: str = Depends(get_current_user)):
+async def decline_user(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
     verify_rol_admin(current_user)
+   
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id==user_id)).first()
         user_notif = conn.execute(select(users.c.id,user_roles.c.role_id).

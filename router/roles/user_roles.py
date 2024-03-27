@@ -22,6 +22,14 @@ async def verify_rol(user_id: int):
             "role_id": verify[1]
         }
 
+async def search_user(data: str):
+    with engine.connect() as conn:
+        ver_user = conn.execute(users.select().where(users.c.email==data)).first()
+        if ver_user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se ha encontrado el usuario")
+        return ver_user[0]
+            
+            
 @routeuserrol.get("/admin/userroles/user", status_code=status.HTTP_200_OK)
 async def get_userroles():
     with engine.connect() as conn:

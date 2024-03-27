@@ -48,27 +48,40 @@ async def insert_two_files_exam(id_exam: int, request: Request, files: List[Uplo
             
             with open(f"img/medic/{pr_photo}.png", "wb") as file_file:
                 file_file.write(content_image)
-            if file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-                with open(f"img/medic/{pr_file}.docx", "wb") as file_image:
-                    file_image.write(content_file)
-            elif file.content_type == "application/pdf":
-                with open(f"img/medic/{pr_file}.pdf", "wb") as file_image:
-                    file_image.write(content_file)
-                
             with engine.connect() as conn:
-                conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
-                                                                    pdf_exam_original=file.filename, 
+                new_file = conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam,
                                                                     image_exam_original=image.filename,
-                                                                    pdf_exam=pr_file,
                                                                     image_exam=pr_photo,
                                                                     created_at=func.now()))
                 conn.commit()     
+            if file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                with open(f"img/medic/{pr_file}.docx", "wb") as file_image:
+                    file_image.write(content_file)
+                with engine.connect() as conn:
+                    new_image = conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
+                                                                    pdf_exam_original=file.filename, 
+                                                                    pdf_exam=pr_file,
+                                                                    created_at=func.now()))
+                    conn.commit()     
+            elif file.content_type == "application/pdf":
+                with open(f"img/medic/{pr_file}.pdf", "wb") as file_image:
+                    file_image.write(content_file)
+                with engine.connect() as conn:
+                    new_image = conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
+                                                                    pdf_exam_original=file.filename, 
+                                                                    pdf_exam=pr_file,
+                                                                    created_at=func.now()))
+                    conn.commit()     
+            
+            id_file = new_file.lastrowid
+            id_image = new_image.lastrowid
+            
 
             base_url = str(request.base_url)
             image_url = f"{base_url.rstrip('/')}/img/medic/{pr_photo}.png"        
-            urls.append({"name": image.filename, "url_file": image_url})  
+            urls.append({"id_image": id_image,"name": image.filename, "url_file": image_url})  
             file_url = f"{base_url.rstrip('/')}/img/medic/{pr_file}.pdf" if file.content_type == "application/pdf" else f"{base_url.rstrip('/')}/img/medic/{pr_file}.docx"
-            urls.append({"name": file.filename,  "url_file": file_url})
+            urls.append({"id_file": id_file,"name": file.filename,  "url_file": file_url})
 
         return urls
 
@@ -89,7 +102,7 @@ async def insert_file_exam(id_exam: int, request: Request, files: List[UploadFil
                 with open(f"img/medic/{pr_file}.png", "wb") as file_file:
                     file_file.write(content_file)
                 with engine.connect() as conn:
-                    conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
+                    new_file = conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
                                                                         image_exam_original=file.filename,
                                                                         image_exam=pr_file,
                                                                         created_at=func.now()))
@@ -98,7 +111,7 @@ async def insert_file_exam(id_exam: int, request: Request, files: List[UploadFil
                 with open(f"img/medic/{pr_file}.docx", "wb") as file_image:
                     file_image.write(content_file)
                 with engine.connect() as conn:
-                    conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
+                    new_file = conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
                                                                         pdf_exam_original=file.filename,
                                                                         pdf_exam=pr_file,
                                                                         created_at=func.now()))
@@ -107,12 +120,12 @@ async def insert_file_exam(id_exam: int, request: Request, files: List[UploadFil
                 with open(f"img/medic/{pr_file}.pdf", "wb") as file_image:
                     file_image.write(content_file)
                 with engine.connect() as conn:
-                    conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
+                    new_file = conn.execute(files_medical_exam_doc.insert().values(exam_id=id_exam, 
                                                                         pdf_exam_original=file.filename,
                                                                         pdf_exam=pr_file,
                                                                         created_at=func.now()))
                     conn.commit()   
-    
+            id_file = new_file.lastrowid
             file_path_file = f"./img/medic/{pr_file}"
             path_file = FileResponse(file_path_file)   
             
@@ -123,7 +136,7 @@ async def insert_file_exam(id_exam: int, request: Request, files: List[UploadFil
                 file_url = f"{base_url.rstrip('/')}/img/medic/{pr_file}.docx"    
             if file.content_type == "application/pdf":
                 file_url = f"{base_url.rstrip('/')}/img/medic/{pr_file}.pdf"    
-            urls.append({"name": file.filename, "url_file": file_url})
+            urls.append({"id_file": id_file, "name": file.filename, "url_file": file_url})
         return urls
     except IntegrityError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")

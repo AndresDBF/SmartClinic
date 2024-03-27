@@ -1,7 +1,7 @@
 import os
 import hashlib
 
-from fastapi import APIRouter, Request, HTTPException, status, Depends, UploadFile, File
+from fastapi import APIRouter, Request, HTTPException, status, Depends, UploadFile, File, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -22,51 +22,55 @@ from router.roles.roles import verify_rol_patient
 
 from jose import jwt, JWTError
 
-from typing import List
+from typing import List, Optional
 
 from datetime import datetime
 
 userexam = APIRouter(tags=["Users"], responses={status.HTTP_404_NOT_FOUND: {"message": "Direccion No encontrada"}})
 
 @userexam.get("/api/user/my-exam-pend/")
-async def list_user_exam(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
+async def list_user_exam(user_id: int, request: Request, page: Optional[int] = Query(1, ge=1), current_user: str = Depends(get_current_user)):
     verify_rol_patient(current_user)
+    page_size = 25
     with engine.connect() as conn:
         exams = conn.execute(
         select(
             medical_exam.c.id,
             medical_exam.c.done,
-            case(
-                (files_medical_exam_doc.c.pdf_exam_original.isnot(None), files_medical_exam_doc.c.pdf_exam_original),
-                else_=literal(None)).label("file_pdf"),
-            case(
-                (files_medical_exam_doc.c.image_exam_original.isnot(None), files_medical_exam_doc.c.image_exam_original),
-                else_=literal(None)).label("file_image"),
             func.date_format(medical_exam.c.created_at, "%d/%m/%Y") 
         )
         .select_from(medical_exam)
-        .join(files_medical_exam_doc, medical_exam.c.id == files_medical_exam_doc.c.exam_id)
+        
         .where(medical_exam.c.user_id == user_id)
         .where(medical_exam.c.done == False)
+       
         ).fetchall()
-
-    list_exams = [
+    total_history = len(exams)
+    #manejo de paginacion
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+    history_exam = exams[start_index:end_index]
+    
+    if not history_exam:
+        return {"message": "No existen examenes pendientes"}, status.HTTP_404_NOT_FOUND
+    
+    history_exam = [
         {
             "id": exam[0],
             "done": exam[1],
-            "datetime": exam[4],
+            "datetime": exam[2],
             "files": []
         } 
+        
         for exam in exams if exam[2] is not None or exam[3] is not None
     ]
 
 
     data_list = []
-    for exam in list_exams:
+    for exam in history_exam:
         exam_id = exam["id"]   
         with engine.connect() as conn:
             files = conn.execute(files_medical_exam_doc.select().where(files_medical_exam_doc.c.exam_id == exam_id)).fetchall()
-        
         files_list = []
         for file in files:
             if file.pdf_exam_original:
@@ -79,7 +83,7 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
                     base_url = str(request.base_url)
                     url_file = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}.pdf" 
                     name_file = file.pdf_exam_original[:-4]
-                    files_list.append({"file": name_file, "url_file": url_file})
+                    files_list.append({"id_file": file.id,"file": name_file, "url_file": url_file, "completed": file.done})
                 else:
                     file_path_file = f"./img/medic/{file.pdf_exam}.docx"
                     if not os.path.exists(file_path_file):
@@ -87,7 +91,7 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
                     base_url = str(request.base_url)
                     url_file = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}.docx" 
                     name_file = file.pdf_exam_original[:-5]
-                    files_list.append({"file": name_file, "url_file": url_file})
+                    files_list.append({"id_file": file.id,"file": name_file, "url_file": url_file, "completed": file.done})
             if file.image_exam_original:
                 print(file.image_exam_original)
                 print(file.image_exam)
@@ -97,114 +101,144 @@ async def list_user_exam(user_id: int, request: Request, current_user: str = Dep
                 base_url = str(request.base_url)
                 url_file = f"{base_url.rstrip('/')}/img/patient/{file.image_exam}.png" 
                 name_file = file.image_exam_original[:-4]
-                files_list.append({"file": name_file, "url_file": url_file})
+                files_list.append({"id_file": file.id,"file": name_file, "url_file": url_file, "completed": file.done})
         
         exam["files"] = files_list
         data_list.append(exam)
-        
-    return  data_list
+    total_pages = total_history // page_size
+    if total_history % page_size != 0:
+        total_pages += 1
+    base_url = str(request.base_url)
+
+    next_page = f"{base_url.rstrip('/')}/api/user/my-exam/?user_id={user_id}page={page + 1}" if page < total_pages else None
+    previous_page = f"{base_url.rstrip('/')}/api/user/my-exam/?user_id={user_id}page={page - 1}" if page > 1 else None
+    data_noti = {
+        "links":{
+        "next": next_page,
+        "previous": previous_page
+        },
+        "data": data_list,
+        "total": total_history,
+    }
+    return  data_noti
 
 @userexam.get("/api/user/my-exam/")
-async def list_user_exam(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
+async def list_user_exam(user_id: int, request: Request, page: Optional[int] = Query(1, ge=1), current_user: str = Depends(get_current_user)):
     verify_rol_patient(current_user)
+    page_size = 25
     with engine.connect() as conn:
         exams = conn.execute(
-            select(
-                medical_exam.c.id,
-                medical_exam.c.done,
-                case(
-                    (files_medical_exam_pat.c.pdf_exam_original.isnot(None), files_medical_exam_pat.c.pdf_exam_original),
-                    else_=literal(None)).label("file_pdf"),
-                case(
-                    (files_medical_exam_pat.c.image_exam_original.isnot(None), files_medical_exam_pat.c.image_exam_original),
-                    else_=literal(None)).label("file_image"),
-                func.date_format(medical_exam.c.created_at, "%d/%m/%Y") 
-            )
-            .select_from(medical_exam)
-            .join(files_medical_exam_pat, medical_exam.c.id == files_medical_exam_pat.c.exam_id)
-            .where(medical_exam.c.user_id == user_id)
-            .where(medical_exam.c.done == True)
+        select(
+            medical_exam.c.id,
+            medical_exam.c.done,
+            func.date_format(medical_exam.c.created_at, "%d/%m/%Y") 
+        )
+        .select_from(medical_exam)
+        
+        .where(medical_exam.c.user_id == user_id)
+        .where(medical_exam.c.done == False)
+       
         ).fetchall()
+    total_history = len(exams)
+    #manejo de paginacion
+    start_index = (page - 1) * page_size
+    end_index = start_index + page_size
+    history_exam = exams[start_index:end_index]
     
-    list_exams = [
+    if not history_exam:
+        return {"message": "No existen examenes"}, status.HTTP_404_NOT_FOUND
+    
+    history_exam = [
         {
             "id": exam[0],
             "done": exam[1],
-            "datetime": exam[4],
+            "datetime": exam[2],
             "files": []
         } 
+        
         for exam in exams if exam[2] is not None or exam[3] is not None
     ]
 
+
     data_list = []
-    for exam in list_exams:
+    for exam in history_exam:
         exam_id = exam["id"]   
         with engine.connect() as conn:
             files = conn.execute(files_medical_exam_pat.select().where(files_medical_exam_pat.c.exam_id == exam_id)).fetchall()
-        
         files_list = []
         for file in files:
             if file.pdf_exam_original:
+                print(file.pdf_exam,file.pdf_exam_original[-4:])
+                print(file.image_exam)
                 if file.pdf_exam_original[-4:] == ".pdf":
-                    file_path_file = f"./img/patient/{file.pdf_exam}{file.pdf_exam_original[-4:]}"
+                    file_path_file = f"./img/medic/{file.pdf_exam}.pdf"
                     if not os.path.exists(file_path_file):
                         return {"error": "el documento del examen no existe"}
                     base_url = str(request.base_url)
-                    url_file = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}{file.pdf_exam_original[-4:]}" 
+                    url_file = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}.pdf" 
                     name_file = file.pdf_exam_original[:-4]
-                    files_list.append({"file": name_file, "url_file": url_file})
+                    files_list.append({"id_file": file.id,"file": name_file, "url_file": url_file})
                 else:
-                    file_path_file = f"./img/patient/{file.pdf_exam}{file.pdf_exam_original[-5:]}"
+                    file_path_file = f"./img/medic/{file.pdf_exam}.docx"
                     if not os.path.exists(file_path_file):
                         return {"error": "el documento del examen no existe"}
                     base_url = str(request.base_url)
-                    url_file = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}{file.pdf_exam_original[-5:]}" 
+                    url_file = f"{base_url.rstrip('/')}/img/patient/{file.pdf_exam}.docx" 
                     name_file = file.pdf_exam_original[:-5]
-                    files_list.append({"file": name_file, "url_file": url_file})
+                    files_list.append({"id_file": file.id,"file": name_file, "url_file": url_file})
             if file.image_exam_original:
                 print(file.image_exam_original)
-                file_path_file = f"./img/patient/{file.image_exam}.png"
+                print(file.image_exam)
+                file_path_file = f"./img/medic/{file.image_exam}.png"
                 if not os.path.exists(file_path_file):
                     return {"error": "La imagen no existe"}
                 base_url = str(request.base_url)
                 url_file = f"{base_url.rstrip('/')}/img/patient/{file.image_exam}.png" 
                 name_file = file.image_exam_original[:-4]
-                files_list.append({"file": name_file, "url_file": url_file})
+                files_list.append({"id_file": file.id,"file": name_file, "url_file": url_file})
         
         exam["files"] = files_list
         data_list.append(exam)
-        
-    return  data_list
+    total_pages = total_history // page_size
+    if total_history % page_size != 0:
+        total_pages += 1
+    base_url = str(request.base_url)
+
+    next_page = f"{base_url.rstrip('/')}/api/user/my-exam/?user_id={user_id}page={page + 1}" if page < total_pages else None
+    previous_page = f"{base_url.rstrip('/')}/api/user/my-exam/?user_id={user_id}page={page - 1}" if page > 1 else None
+    data_noti = {
+        "links":{
+        "next": next_page,
+        "previous": previous_page
+        },
+        "data": data_list,
+        "total": total_history,
+    }
+    return  data_noti
 
 @userexam.post("/api/user/update-exam/", status_code=status.HTTP_201_CREATED)
-async def update_exam(exam_id: int, request: Request, files: List[UploadFile] = File(None), photos: List[UploadFile] = File(None),  current_user: str = Depends(get_current_user)):
+async def update_exam(exam_id: int, id_file: int, request: Request, files: UploadFile = File(None), photos: UploadFile = File(None),  current_user: str = Depends(get_current_user)):
     verify_rol_patient(current_user)
     try:
-        data_files = []
-        url_iamges = []
-        if files:
-            for file in files:
-                if file.filename != '':
-                    print("entra en el primer if ")
-                    if file.content_type not in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf"]:
-                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser un archivo Word o PDF, JPG, JPEG o PNG")
-                    url_files = await insert_file_exam(exam_id, request, file)
-                    data_files.append({"files": url_files})  
-
-        if photos:
-            for photo in photos:
-                if photo.filename != '':
-                    print("entra en el segundo if ")
-                    if photo.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
-                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser un archivo Word o PDF, JPG, JPEG o PNG")
-                    url_files = await insert_file_exam(exam_id, request, photo)
-                    url_iamges.append({"files": url_files})
+        if files.filename != '':
+            print("entra en el primer if ")
+            if files.content_type not in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/pdf"]:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser un archivo Word o PDF, JPG, JPEG o PNG")
+            url_file = await insert_file_exam(exam_id, request, files, id_file)
+       
+        if photos.filename != '':
+            print("entra en el segundo if ")
+            if photos.content_type not in ["image/jpeg", "image/jpg", "image/png"]:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El archivo debe ser un archivo Word o PDF, JPG, JPEG o PNG")
+            url_img = await insert_file_exam(exam_id, request, photos, id_file)
+           
         else:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Debe adjuntar almenos 1 archivo")            
         return JSONResponse(content={
                     "saved": True,
                     "message": "examen cargado correctamente",
-                    "url_files": data_files,
+                    "url_file": url_file,
+                    "url_img": url_img
                     
                 }, status_code=status.HTTP_201_CREATED)
     
@@ -255,7 +289,7 @@ async def insert_two_files_exam(id_exam: int, request: Request, file: UploadFile
     except IntegrityError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe") from e
 
-async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
+async def insert_file_exam(id_exam: int, request: Request, file: UploadFile, id_file: int):
     try:   
         content_file = await file.read()
         pr_file = hashlib.sha256(content_file).hexdigest()
@@ -268,6 +302,8 @@ async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
                                                                             image_exam=pr_file,
                                                                             created_at=func.now()))
                     conn.commit()   
+                    conn.execute(files_medical_exam_doc.update().where(files_medical_exam_doc.c.id==id_file).values(done=True)) 
+                    conn.commit()
             if file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                 with open(f"img/patient/{pr_file}.docx", "wb") as file_image:
                     file_image.write(content_file)
@@ -276,32 +312,44 @@ async def insert_file_exam(id_exam: int, request: Request, file: UploadFile):
                                                                             pdf_exam=pr_file,
                                                                             created_at=func.now()))
                     conn.commit()   
+                    conn.execute(files_medical_exam_doc.update().where(files_medical_exam_doc.c.id==id_file).values(done=True)) 
+                    conn.commit()
             if file.content_type == "application/pdf":
                 with open(f"img/patient/{pr_file}.pdf", "wb") as file_image:
                     file_image.write(content_file)
-                    conn.execute(files_medical_exam_pat.insert().values(exam_id=id_exam, 
+                    new_file = conn.execute(files_medical_exam_pat.insert().values(exam_id=id_exam, 
                                                                             pdf_exam_original=file.filename,
                                                                             pdf_exam=pr_file,
                                                                             created_at=func.now()))
-                    conn.commit()   
-            conn.execute(medical_exam.update().where(medical_exam.c.id==id_exam).values(done=True)) 
-            conn.commit()
+                    conn.commit() 
+                     
+                    conn.execute(files_medical_exam_doc.update().where(files_medical_exam_doc.c.id==id_file).values(done=True)) 
+                    conn.commit()
+                    id_file = new_file.lastrowid
+            ver_consult_completed = conn.execute(files_medical_exam_doc.select().where(files_medical_exam_doc.c.exam_id==id_exam)
+                         .where(files_medical_exam_doc.c.done != True)).fetchall()
+            if not ver_consult_completed:
+                conn.execute(medical_exam.update().where(medical_exam.c.id==id_exam).values(done=True)) 
+                conn.commit()
 
             base_url = str(request.base_url)
             if file.content_type in ["image/jpeg", "image/jpg", "image/png"]: 
                 return {
+                    "id_file": id_file,
                     "name": file.filename,
                     "url_file": f"{base_url.rstrip('/')}/img/patient/{pr_file}.png"
                 }
                           
             elif file.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
                 return {
+                    "id_file": id_file,
                     "name": file.filename,
                     "url_file": f"{base_url.rstrip('/')}/img/patient/{pr_file}.docx"
                 }
                 
             elif file.content_type == "application/pdf":
                 return {
+                    "id_file": id_file,
                     "name": file.filename,
                     "url_file": f"{base_url.rstrip('/')}/img/patient/{pr_file}.pdf"
                 }

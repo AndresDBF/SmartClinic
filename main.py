@@ -30,6 +30,7 @@ from model.blacklist_token import blacklist_token
 
 from router.admin.list_user import luser
 from router.admin.users_verify import uverify
+from router.admin.pharmacy import routepharmacy
 from router.paciente.home import patienthome
 from router.doctor.home import doctorhome
 #from router.admin.home import adminhome
@@ -61,7 +62,8 @@ app.title = "Documentación SmartClinic"
 app.mount("/img/profile", StaticFiles(directory="img/profile"), name="profile_images")
 app.mount("/img/medic", StaticFiles(directory="img/medic"), name="medic_exam")
 app.mount("/img/patient", StaticFiles(directory="img/patient"), name="exam_patient")
-
+app.mount("/img/pharmacy", StaticFiles(directory="img/pharmacy"), name="pharmacy")
+app.mount("/img/galery", StaticFiles(directory="img/galery"), name="galery")
 #usuarios
 app.include_router(routecomments)
 app.include_router(router_websockets)
@@ -80,6 +82,7 @@ app.include_router(luser)
 app.include_router(uverify)
 app.include_router(routerol)
 app.include_router(routeuserrol)
+app.include_router(routepharmacy)
 
 #doctor
 app.include_router(doctorhome)

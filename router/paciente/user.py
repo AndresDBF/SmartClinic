@@ -344,8 +344,20 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Invalido")
 
+async def verify_rol_user(user_id: int, data_user: str):
+    with engine.connect() as conn:
+        ver_user_rol = conn.execute(select(user_roles.c.role_id).select_from(user_roles)
+                                   .where(user_roles.c.user_id==user_id)).first()
+        ver_sesion_rol = conn.execute(select(user_roles.c.role_id).select_from(user_roles)
+                                      .join(users, user_roles.c.user_id==users.c.id)
+                                      .where(users.c.email == data_user)).first()
+        if ver_user_rol[0] != ver_sesion_rol[0]:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized Role")
+    return True
+
 @user.get("/api/user/show/{user_id}/")
 async def edit_user(user_id: int, request: Request, current_user: str = Depends(get_current_user)):
+    await verify_rol_user(user_id, current_user)
     with engine.connect() as conn:
         user = conn.execute(users.select().where(users.c.id == user_id)).first()
         user_contact = conn.execute(usercontact.select().where(usercontact.c.user_id == user_id)).first()
@@ -422,6 +434,7 @@ async def create_user(
     direction: str = Form(None),
     image: UploadFile = File(None),  current_user: str = Depends(get_current_user)):
     
+    await verify_rol_user(user_id, current_user)
     update_user = {}
     update_contact_user = {}
     
@@ -480,10 +493,14 @@ async def create_user(
                     image_ident = FileResponse(file_path_prof)  
                     base_url = str(request.base_url)
                     image_url = f"{base_url.rstrip('/')}/img/profile/{pr_photo}.png" 
-                    
-                    conn.execute(user_image_profile.update().
-                                    where(user_image_profile.c.user_id==user_id).
-                                    values(image_profile_original=image.filename, image_profile=pr_photo))
+                    imag = conn.execute(user_image_profile.select().where(user_image_profile.c.user_id == user_id)).first()
+                    if imag is None:
+                        conn.execute(user_image_profile.insert().values(user_id=user_id, image_profile_original=image.filename, image_profile=pr_photo))
+                        conn.commit()
+                    else:
+                        conn.execute(user_image_profile.update().
+                                        where(user_image_profile.c.user_id==user_id).
+                                        values(image_profile_original=image.filename, image_profile=pr_photo))
                     conn.commit()
                 except IntegrityError:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen ya existe")
@@ -502,34 +519,8 @@ async def create_user(
         
     return Response(content="Cuenta actualizada correctamente", status_code=status.HTTP_200_OK)
 
+
 #---------------codigo guardado para envio de correo de verificacion---------------------   
-    
-""" def send_verification_email(email, user_id, request: Request):
-    with engine.connect() as conn:
-        name = conn.execute(select(users.c.name, users.c.last_name).select_from(users).where(users.c.id==user_id)).first()
-    sender_email = "andrespruebas222@gmail.com"
-    sender_name = "Andres Becerra"
-    subject = "Verificación de cuenta"
-    base_url = str(request.base_url)
-    verification_link = f"{base_url.rstrip('/')}/api/verify/{user_id}"
-
-    message = MIMEMultipart("alternative")
-    message["From"] = sender_email
-    message["To"] = email
-    message["Subject"] = subject
-
-    text = f"Para verificar tu cuenta, haz clic en el siguiente enlace: {verification_link}"
-    html = f"<p>Para verificar tu cuenta, haz clic en el siguiente enlace: <a href='{verification_link}'>Verificar cuenta</a></p>"
-
-    message.attach(MIMEText(text, "plain"))
-    message.attach(MIMEText(html, "html"))
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(sender_email, "vhvcinzspvlwoftc")  # Coloca tu contraseña aquí
-        server.send_message(message)
-    return JSONResponse(content={"saved": True, "message": "correo enviado correctamente"}, status_code=status.HTTP_200_OK) """
-    
-#---------------------para verificar el token------------------------------------------------------------
 
 
 def send_verification_email(email, user_id, request: Request):

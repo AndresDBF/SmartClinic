@@ -5,6 +5,7 @@ from config.db import engine
 
 from model.tip_consult import tip_consult
 from model.patient_consult import patient_consult
+from model.person_antecedent import person_antecedent
 
 from router.logout import get_current_user
 from router.roles.roles import verify_rol_patient
@@ -20,6 +21,11 @@ routetipco = APIRouter(tags=["Tip Consult"], responses={status.HTTP_404_NOT_FOUN
 async def get_tip_consult(user_id: int, current_user: str = Depends(get_current_user)):
     verify_rol_patient(current_user)
     with engine.connect() as conn:
+        ver_ant = conn.execute(person_antecedent.select().where(person_antecedent.c.user_id == user_id)).first()
+        print(ver_ant is None)
+        print(ver_ant)
+        if ver_ant is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="El antecedence del paciente no existe")
         ext_tip_consult = conn.execute(tip_consult.select()).fetchall()
         if ext_tip_consult:
             list_consult = [
@@ -41,15 +47,15 @@ async def get_tip_consult(user_id: int, current_user: str = Depends(get_current_
         conn.execute(tip_consult.insert(), new_list_consult)
         conn.commit()
         query = conn.execute(tip_consult.select()).fetchall()
-        list_consult = [
-                {
-                    "id": row[0],
-                    "tipconsult": row[1],
-                    "user_id": user_id
-                }
-                for row in query
-        ]
-        return JSONResponse(content=list_consult, status_code=status.HTTP_200_OK)
+    list_consult = [
+        {
+            "id": row[0],
+            "tipconsult": row[1],
+            "user_id": user_id
+        }
+        for row in query
+    ]
+    return JSONResponse(content=list_consult, status_code=status.HTTP_200_OK)
 
 @routetipco.post("/api/user/consult/{userid}/{consultid}/")
 async def create_consult(userid: int, consultid: int, current_user: str = Depends(get_current_user)):
